@@ -13,11 +13,11 @@ public:
             , const GroupElement& h2
             , const std::vector<GroupElement>& g_vector
             , const std::vector<GroupElement>& h_vector
-            , uint64_t n
+            , std::size_t n
             , unsigned int v);
 
     // commitments are included into transcript if version >= LELANTUS_TX_VERSION_4_5
-    void batch_proof(
+    void proof(
             const std::vector<Scalar>& v
             , const std::vector<Scalar>& serialNumbers
             , const std::vector<Scalar>& randomness
@@ -30,7 +30,7 @@ private:
     GroupElement h2;
     std::vector<GroupElement> g_;
     std::vector<GroupElement> h_;
-    uint64_t n;
+    std::size_t n;
     unsigned int version;
 
 };

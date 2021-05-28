@@ -38,6 +38,8 @@ class LelantusPrimitives {
 
 public:
 ////common functions
+    static std::vector<Scalar> invert(const std::vector<Scalar>& scalars);
+
     static void generate_challenge(
             const std::vector<GroupElement>& group_elements,
             const std::string& domain_separator,
@@ -112,7 +114,7 @@ public:
             const GroupElement& R,
             const Scalar& x);
 
-    static Scalar delta(const Scalar& y, const Scalar& z, uint64_t n, uint64_t m);
+    static Scalar delta(const Scalar& y, const Scalar& z, std::size_t n, std::size_t m);
 
 };
 
