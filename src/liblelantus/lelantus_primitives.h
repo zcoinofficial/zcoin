@@ -64,9 +64,9 @@ public:
             const Scalar& r,
             GroupElement& result_out);
 
-    static void convert_to_sigma(uint64_t num, uint64_t n, uint64_t m, std::vector<Scalar>& out);
+    static void convert_to_sigma(std::size_t num, std::size_t n, std::size_t m, std::vector<Scalar>& out);
 
-    static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
+    static std::vector<std::size_t> convert_to_nal(std::size_t num, std::size_t n, std::size_t m);
 
     static void generate_Lelantus_challenge(
             const std::vector<SigmaExtendedProof>& proofs,
