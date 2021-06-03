@@ -5,8 +5,8 @@ template<class Exponent, class GroupElement>
 SigmaPlusProver<Exponent, GroupElement>::SigmaPlusProver(
         const GroupElement& g,
         const std::vector<GroupElement>& h_gens,
-        int n,
-        int m)
+        std::size_t n,
+        std::size_t m)
     : g_(g)
     , h_(h_gens)
     , n_(n)
@@ -33,7 +33,7 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
     // Values of Ro_k from Figure 5.
     std::vector<Exponent> Pk;
     Pk.resize(m_);
-    for (int k = 0; k < m_; ++k) {
+    for (std::size_t k = 0; k < m_; ++k) {
         Pk[k].randomize();
     }
     R1ProofGenerator<secp_primitives::Scalar, secp_primitives::GroupElement> r1prover(g_, h_, sigma, rB, n_, m_);
@@ -49,10 +49,10 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
     // last polynomial is special case if fPadding is true
     for (std::size_t i = 0; i < (fPadding ? N-1 : N); ++i) {
         std::vector<Exponent>& coefficients = P_i_k[i];
-        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n_, m_);
+        std::vector<std::size_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n_, m_);
         coefficients.push_back(a[I[0]]);
         coefficients.push_back(sigma[I[0]]);
-        for (int j = 1; j < m_; ++j) {
+        for (std::size_t j = 1; j < m_; ++j) {
             SigmaPrimitives<Exponent, GroupElement>::new_factor(sigma[j * n_ + I[j]], a[j * n_ + I[j]], coefficients);
         }
     }
@@ -76,23 +76,23 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
          *     \right]
          */
 
-        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(N-1, n_, m_);
-        std::vector<uint64_t> lj = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(l, n_, m_);
+        std::vector<std::size_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(N-1, n_, m_);
+        std::vector<std::size_t> lj = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(l, n_, m_);
 
         std::vector<Exponent> p_i_sum;
         p_i_sum.emplace_back(uint64_t(1));
         std::vector<std::vector<Exponent>> partial_p_s;
 
         // Pre-calculate product parts and calculate p_s(x) at the same time, put the latter into p_i_sum
-        for (int j = m_ - 1; j >= 0; j--) {
+        for (std::size_t j = m_; j > 0; j--) {
             partial_p_s.push_back(p_i_sum);
-            SigmaPrimitives<Exponent, GroupElement>::new_factor(sigma[j * n_ + I[j]], a[j * n_ + I[j]], p_i_sum);
+            SigmaPrimitives<Exponent, GroupElement>::new_factor(sigma[(j - 1) * n_ + I[j - 1]], a[(j - 1) * n_ + I[j - 1]], p_i_sum);
         }
 
-        for (int j = 0; j < m_; j++) {
+        for (std::size_t j = 0; j < m_; j++) {
             // \sum_{i=s_j+1}^{n-1}(\delta_{l_j,i}x+a_{j,i})
             Exponent a_sum(uint64_t(0));
-            for (int i = I[j] + 1; i < n_; i++)
+            for (std::size_t i = I[j] + 1; i < n_; i++)
                 a_sum += a[j * n_ + i];
             Exponent x_sum(uint64_t(lj[j] >= I[j]+1 ? 1 : 0));
 
@@ -101,7 +101,7 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
             SigmaPrimitives<Exponent, GroupElement>::new_factor(x_sum, a_sum, polynomial);
 
             // Multiply by x^j and add to the result
-            for (int k = 0; k < m_ - j; k++)
+            for (std::size_t k = 0; k < m_ - j; k++)
                 p_i_sum[j + k] += polynomial[k];
         }
 
@@ -111,10 +111,10 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
     //computing G_k`s;
     std::vector <GroupElement> Gk;
     Gk.reserve(m_);
-    for (int k = 0; k < m_; ++k) {
+    for (std::size_t k = 0; k < m_; ++k) {
         std::vector <Exponent> P_i;
         P_i.reserve(N);
-        for (size_t i = 0; i < N; ++i) {
+        for (std::size_t i = 0; i < N; ++i) {
             P_i.emplace_back(P_i_k[i][k]);
         }
         secp_primitives::MultiExponent mult(commits, P_i);
@@ -138,7 +138,7 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
     z = r * x.exponent(uint64_t(m_));
     Exponent sum;
     Exponent x_k(uint64_t(1));
-    for (int k = 0; k < m_; ++k) {
+    for (std::size_t k = 0; k < m_; ++k) {
         sum += (Pk[k] * x_k);
         x_k *= x;
     }

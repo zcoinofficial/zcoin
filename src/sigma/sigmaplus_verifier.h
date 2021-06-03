@@ -11,11 +11,16 @@ class SigmaPlusVerifier{
 public:
     SigmaPlusVerifier(const GroupElement& g,
                       const std::vector<GroupElement>& h_gens,
-                      int n, int m_);
+                      std::size_t n, std::size_t m_);
 
     bool verify(const std::vector<GroupElement>& commits,
                 const SigmaPlusProof<Exponent, GroupElement>& proof,
                 bool fPadding) const;
+
+    bool verify(const std::vector<GroupElement>& commits,
+                const SigmaPlusProof<Exponent, GroupElement>& proof,
+                bool fPadding,
+                std::size_t setSize) const;
 
     bool batch_verify(const std::vector<GroupElement>& commits,
                       const std::vector<Exponent>& serials,
@@ -43,8 +48,8 @@ public:
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;
-    int n;
-    int m;
+    std::size_t n;
+    std::size_t m;
 };
 
 } // namespace sigma

@@ -13,7 +13,7 @@ class SigmaPlusProver{
 
 public:
     SigmaPlusProver(const GroupElement& g,
-                    const std::vector<GroupElement>& h_gens, int n, int m);
+                    const std::vector<GroupElement>& h_gens, std::size_t n, std::size_t m);
     void proof(const std::vector<GroupElement>& commits,
                std::size_t l,
                const Exponent& r,
@@ -23,8 +23,8 @@ public:
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;
-    int n_;
-    int m_;
+    std::size_t n_;
+    std::size_t m_;
 };
 
 } // namespace sigma

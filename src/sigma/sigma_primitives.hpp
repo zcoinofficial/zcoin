@@ -23,18 +23,18 @@ GroupElement SigmaPrimitives<Exponent, GroupElement>::commit(
 
 template<class Exponent, class GroupElement>
 void SigmaPrimitives<Exponent, GroupElement>::convert_to_sigma(
-        uint64_t num,
-        uint64_t n,
-        uint64_t m,
+        std::size_t num,
+        std::size_t n,
+        std::size_t m,
         std::vector<Exponent>& out) {
-    uint64_t rem;
-    uint64_t j = 0;
+    std::size_t rem;
+    std::size_t j = 0;
 
     for (j = 0; j < m; ++j)
     {
         rem = num % n;
         num /= n;
-        for (uint64_t i = 0; i < n; ++i) {
+        for (std::size_t i = 0; i < n; ++i) {
             if(i == rem)
                 out.push_back(Exponent(uint64_t(1)));
             else
@@ -44,19 +44,16 @@ void SigmaPrimitives<Exponent, GroupElement>::convert_to_sigma(
 }
 
 template<class Exponent, class GroupElement>
-std::vector<uint64_t> SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(
-        uint64_t num,
-        uint64_t n,
-        uint64_t m) {
-    std::vector<uint64_t> result;
-    uint64_t rem;
-    uint64_t j = 0;
+std::vector<std::size_t> SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(
+        std::size_t num,
+        std::size_t n,
+        std::size_t m) {
+    std::vector<std::size_t> result;
+    result.reserve(m);
     while (num != 0)
     {
-        rem = num % n;
+        result.emplace_back(num % n);
         num /= n;
-        result.push_back(rem);
-        j++;
     }
     result.resize(m);
     return result;

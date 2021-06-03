@@ -1,13 +1,13 @@
-
 #include <math.h>
-namespace sigma{
+
+namespace sigma {
 
 template<class Exponent, class GroupElement>
 SigmaPlusVerifier<Exponent, GroupElement>::SigmaPlusVerifier(
         const GroupElement& g,
         const std::vector<GroupElement>& h_gens,
-        int n,
-        int m)
+        std::size_t n,
+        std::size_t m)
     : g_(g)
     , h_(h_gens)
     , n(n)
@@ -19,258 +19,232 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
         const std::vector<GroupElement>& commits,
         const SigmaPlusProof<Exponent, GroupElement>& proof,
         bool fPadding) const {
+    // Prepare a batch with a single proof
+    std::vector<Exponent> serials = { Exponent(uint64_t(0)) };
+    std::vector<bool> fPadding_ = { fPadding };
+    std::vector<std::size_t> setSizes = { commits.size() };
+    std::vector<SigmaPlusProof<Exponent, GroupElement>> proofs = { proof };
 
-    R1ProofVerifier<Exponent, GroupElement> r1ProofVerifier(g_, h_, proof.B_, n, m);
-    std::vector<Exponent> f;
-    const R1Proof<Exponent, GroupElement>& r1Proof = proof.r1Proof_;
-    if (!r1ProofVerifier.verify(r1Proof, f, true /* Skip verification of final response */)) {
-        LogPrintf("Sigma spend failed due to r1 proof incorrect.");
-        return false;
-    }
-
-    if (!proof.B_.isMember() || proof.B_.isInfinity()) {
-        LogPrintf("Sigma spend failed due to value of B outside of group.");
-        return false;
-    }
-
-    const std::vector <GroupElement>& Gk = proof.Gk_;
-    for (int k = 0; k < m; ++k) {
-        if (!Gk[k].isMember() || Gk[k].isInfinity()) {
-            LogPrintf("Sigma spend failed due to value of GK[i] outside of group.");
-            return false;
-        }
-    }
-
-    // Compute value of challenge X, then continue R1 proof and sigma final response proof.
-    std::vector<GroupElement> group_elements = {
-        r1Proof.A_, proof.B_, r1Proof.C_, r1Proof.D_};
-
-    group_elements.insert(group_elements.end(), Gk.begin(), Gk.end());
-    Exponent challenge_x;
-    SigmaPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, challenge_x);
-
-    // Now verify the final response of r1 proof. Values of "f" are finalized only after this call.
-    if (!r1ProofVerifier.verify_final_response(r1Proof, challenge_x, f)) {
-        LogPrintf("Sigma spend failed due to incorrect final response.");
-        return false;
-    }
-
-    if(!proof.z_.isMember() || proof.z_.isZero()) {
-        LogPrintf("Sigma spend failed due to value of Z outside of group.");
-        return false;
-    }
-
-    if (commits.empty()) {
-        LogPrintf("No mints in the anonymity set");
-        return false;
-    }
-
-    std::size_t N = commits.size();
-    std::vector<Exponent> f_i_;
-    f_i_.resize(N);
-
-    compute_fis(m, f, f_i_);
-
-    if (fPadding) {
-        /*
-         * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
-         * a proof. The fact that sum of any row in 'f' array is 'x' (challenge value) is used.
-         *
-         * Math (in TeX notation):
-         *
-         * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} =
-         *   \sum_{j=0}^{m-1}
-         *     \left[
-         *       \left( \sum_{i=s_j+1}^{n-1}f_{j,i} \right)
-         *       \left( \prod_{k=j}^{m-1}f_{k,s_k} \right)
-         *       x^j
-         *     \right]
-         */
-
-        Exponent pow(uint64_t(1));
-        std::vector<uint64_t> I = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(N - 1, n, m);
-        std::vector<Exponent> f_part_product;    // partial product of f array elements for lastIndex
-        for (int j = m - 1; j >= 0; j--) {
-            f_part_product.push_back(pow);
-            pow *= f[j * n + I[j]];
-        }
-
-        Exponent xj(uint64_t(1));;    // x^j
-        for (int j = 0; j < m; j++) {
-            Exponent fi_sum(uint64_t(0));
-            for (int i = I[j] + 1; i < n; i++)
-                fi_sum += f[j*n + i];
-            pow += fi_sum * xj * f_part_product[m - j - 1];
-            xj *= challenge_x;
-        }
-        f_i_[N - 1] = pow;
-    }
-
-    secp_primitives::MultiExponent mult(commits, f_i_);
-    GroupElement t1 = mult.get_multiple();
-
-    GroupElement t2;
-    Exponent x_k(uint64_t(1));
-    for(int k = 0; k < m; ++k){
-        t2 += (Gk[k] * (x_k.negate()));
-        x_k *= challenge_x;
-    }
-
-    GroupElement left(t1 + t2);
-    if (left != SigmaPrimitives<Exponent, GroupElement>::commit(g_, Exponent(uint64_t(0)), h_[0], proof.z_)) {
-        LogPrintf("Sigma spend failed due to final proof verification failure.");
-        return false;
-    }
-
-    return true;
+    return batch_verify(
+        commits, serials, fPadding_, setSizes, proofs
+    );
 }
 
+template<class Exponent, class GroupElement>
+bool SigmaPlusVerifier<Exponent, GroupElement>::verify(
+        const std::vector<GroupElement>& commits,
+        const SigmaPlusProof<Exponent, GroupElement>& proof,
+        bool fPadding,
+        std::size_t setSize) const {
+    // Prepare a batch with a single proof
+    std::vector<Exponent> serials = { Exponent(uint64_t(0)) };
+    std::vector<bool> fPadding_ = { fPadding };
+    std::vector<std::size_t> setSizes = { setSize };
+    std::vector<SigmaPlusProof<Exponent, GroupElement>> proofs = { proof };
+
+    return batch_verify(
+        commits, serials, fPadding_, setSizes, proofs
+    );
+}
+
+// Verify a batch of one-of-many proofs
 template<class Exponent, class GroupElement>
 bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
         const std::vector<GroupElement>& commits,
         const std::vector<Exponent>& serials,
         const std::vector<bool>& fPadding,
-        const std::vector<size_t>& setSizes,
+        const std::vector<std::size_t>& setSizes,
         const std::vector<SigmaPlusProof<Exponent, GroupElement>>& proofs) const {
-
-    int M = proofs.size();
-    int N = commits.size();
-
-    if (commits.empty())
+    // Sanity checks
+    if (n < 2 || m < 2) {
+        LogPrintf("Verifier parameters are invalid");
         return false;
+    }
+    std::size_t M = proofs.size();
+    std::size_t N = (std::size_t)pow(n,m);
 
-    for(int t = 0; t < M; ++t) {
+    if (commits.size() == 0) {
+        LogPrintf("Cannot have empty commitment set");
+        return false;
+    }
+    if (commits.size() > N) {
+        LogPrintf("Commitment set is too large");
+        return false;
+    }
+    if (h_.size() != n * m) {
+        LogPrintf("Generator vector size is invalid");
+        return false;
+    }
+    if (serials.size() != M) {
+        LogPrintf("Invalid number of serials provided");
+        return false;
+    }
+    if (fPadding.size() != M) {
+        LogPrintf("Padding vector size is invalid");
+        return false;
+    }
+    
+    // All proof elements must be valid
+    for (std::size_t t = 0; t < M; ++t) {
         if (!membership_checks(proofs[t])) {
-            LogPrintf("Sigma spend failed due to membership check failed.");
-            return false;
-        }
-    }
-    std::vector<Exponent> challenges;
-    challenges.resize(M);
-
-    std::vector<std::vector<Exponent>> f_;
-    f_.resize(M);
-    for (int t = 0; t < M; ++t)
-    {
-        std::vector<GroupElement> group_elements = {
-                proofs[t].r1Proof_.A_, proofs[t].B_, proofs[t].r1Proof_.C_, proofs[t].r1Proof_.D_};
-
-        group_elements.insert(group_elements.end(), proofs[t].Gk_.begin(), proofs[t].Gk_.end());
-        SigmaPrimitives<Exponent, GroupElement>::generate_challenge(group_elements, challenges[t]);
-
-        if(!compute_fs(proofs[t], challenges[t], f_[t]) || !abcd_checks(proofs[t], challenges[t], f_[t])) {
-            LogPrintf("Sigma spend failed due to compute_fs or abcd_checks failed.");
+            LogPrintf("Sigma verification failed due to membership check failed.");
             return false;
         }
     }
 
-    std::vector<Scalar> y;
-    y.resize(M);
-    for (int t = 0; t < M; ++t)
-        y[t].randomize();
+    // Final batch multiscalar multiplication
+    Scalar g_scalar = Scalar(uint64_t(0)); // associated to g_
+    Scalar h_scalar = Scalar(uint64_t(0)); // associated to h_
+    std::vector<Scalar> h_scalars; // associated to (h_)
+    std::vector<Scalar> commit_scalars; // associated to commitment list
+    h_scalars.reserve(n * m);
+    h_scalars.resize(n * m);
+    for (size_t i = 0; i < n * m; i++) {
+        h_scalars[i] = Scalar(uint64_t(0));
+    }
+    commit_scalars.reserve(commits.size());
+    commit_scalars.resize(commits.size());
+    for (size_t i = 0; i < commits.size(); i++) {
+        commit_scalars[i] = Scalar(uint64_t(0));
+    }
 
-    std::vector<Scalar> f_i_t;
-    f_i_t.resize(N);
-    GroupElement right;
-    Scalar exp;
+    // Set up the final batch elements
+    std::vector<GroupElement> points;
+    std::vector<Scalar> scalars;
+    std::size_t final_size = 2 + m * n + commits.size(); // g, h, (h_), (commits)
+    for (std::size_t t = 0; t < M; t++) {
+        final_size += 4 + proofs[t].Gk_.size(); // A, B, C, D, (G)
+    }
+    points.reserve(final_size);
+    scalars.reserve(final_size);
 
-    std::vector <std::vector<uint64_t>> I_;
+    // Index decomposition, which is common among all proofs
+    std::vector<std::vector<std::size_t>> I_;
+    I_.reserve(N);
     I_.resize(N);
-    for (int i = 0; i < N ; ++i)
+    for (std::size_t i = 0; i < commits.size(); i++) {
         I_[i] = SigmaPrimitives<Exponent, GroupElement>::convert_to_nal(i, n, m);
+    }
 
-    for (int t = 0; t < M; ++t)
-    {
-        right += (SigmaPrimitives<Exponent, GroupElement>::commit(g_, Scalar(uint64_t(0)), h_[0], proofs[t].z_)) * y[t];
-        Scalar e;
-        size_t size = setSizes[t];
-        size_t start = N - size;
+    // Process all proofs
+    for (std::size_t t = 0; t < M; t++) {
+        SigmaPlusProof<Exponent, GroupElement> proof = proofs[t];
+
+        // Compute the challenge
+        Exponent x;
+        std::vector<GroupElement> challenge_elements = {
+            proof.r1Proof_.A_,
+            proof.B_,
+            proof.r1Proof_.C_,
+            proof.r1Proof_.D_,
+        };
+        challenge_elements.insert(challenge_elements.end(), proof.Gk_.begin(), proof.Gk_.end());
+        SigmaPrimitives<Exponent, GroupElement>::generate_challenge(challenge_elements, x);
+
+        // Generate random verifier weights
+        Scalar w1, w2, w3;
+        w1.randomize();
+        w2.randomize();
+        w3.randomize();
+
+        // Reconstruct f-matrix
+        std::vector<Exponent> f_;
+        if (!compute_fs(proof, x, f_)) {
+            LogPrintf("Invalid matrix reconstruction");
+            return false;
+        }
+
+        // A, B, C, D (and associated commitments)
+        points.emplace_back(proof.r1Proof_.A_);
+        scalars.emplace_back(w1.negate());
+        points.emplace_back(proof.B_);
+        scalars.emplace_back(x.negate() * w1);
+        points.emplace_back(proof.r1Proof_.C_);
+        scalars.emplace_back(x.negate() * w2);
+        points.emplace_back(proof.r1Proof_.D_);
+        scalars.emplace_back(w2.negate());
+
+        g_scalar += proof.r1Proof_.ZA_ * w1 + proof.r1Proof_.ZC_ * w2;
+        for (std::size_t i = 0; i < m * n; i++) {
+            h_scalars[i] += f_[i] * (w1 + (x - f_[i]) * w2);
+        }
+
+        // Input sets
+        h_scalar += proof.z_ * w3.negate();
 
         Scalar f_i(uint64_t(1));
-        std::vector<Scalar>::iterator ptr = f_i_t.begin() + start;
-        compute_batch_fis(f_i, m, f_[t], y[t], e, ptr, ptr, ptr + size - 1);
+        Scalar e;
+        size_t size = setSizes[t];
+        size_t start = commits.size() - size;
+
+        vector<Scalar>::iterator ptr = commit_scalars.begin() + start;
+        compute_batch_fis(f_i, m, f_, w3, e, ptr, ptr, ptr + size - 1);
 
         if(fPadding[t]) {
-            /*
-            * Optimization for getting power for last 'commits' array element is done similarly to the one used in creating
-            * a proof. The fact that sum of any row in 'f' array is 'x' (challenge value) is used.
-            *
-            * Math (in TeX notation):
-            *
-            * \sum_{i=s+1}^{N-1} \prod_{j=0}^{m-1}f_{j,i_j} =
-            *   \sum_{j=0}^{m-1}
-            *     \left[
-            *       \left( \sum_{i=s_j+1}^{n-1}f_{j,i} \right)
-            *       \left( \prod_{k=j}^{m-1}f_{k,s_k} \right)
-            *       x^j
-            *     \right]
-            */
-
             Scalar pow(uint64_t(1));
-            std::vector <Scalar> f_part_product;    // partial product of f array elements for lastIndex
-            for (int j = m - 1; j >= 0; j--) {
+            vector <Scalar> f_part_product;
+            for (std::size_t j = m; j > 0; j--) {
                 f_part_product.push_back(pow);
-                pow *= f_[t][j * n + I_[size - 1][j]];
+                pow *= f_[(j - 1) * n + I_[size - 1][j - 1]];
             }
 
-            NthPower<Exponent> xj(challenges[t]);
+            NthPower<Exponent> xj(x);
             for (std::size_t j = 0; j < m; j++) {
                 Scalar fi_sum(uint64_t(0));
                 for (std::size_t i = I_[size - 1][j] + 1; i < n; i++)
-                    fi_sum += f_[t][j * n + i];
+                    fi_sum += f_[j*n + i];
                 pow += fi_sum * xj.pow * f_part_product[m - j - 1];
                 xj.go_next();
             }
 
-            f_i_t[N - 1] += pow * y[t];
+            commit_scalars[commits.size() - 1] += pow * w3;
             e += pow;
         } else {
             f_i = (uint64_t(1));
             for (std::size_t j = 0; j < m; ++j)
             {
-                f_i *= f_[t][j*n + I_[size - 1][j]];
+                f_i *= f_[j*n + I_[size - 1][j]];
             }
 
-            f_i_t[N - 1] += f_i * y[t];
+            commit_scalars[commits.size() - 1] += f_i * w3;
             e += f_i;
         }
 
-        e *= serials[t] * y[t];
-        exp += e;
-    }
+        e *= serials[t] * w3.negate();
+        g_scalar += e;
 
-    secp_primitives::MultiExponent mult(commits, f_i_t);
-    GroupElement t1 = mult.get_multiple();
-
-    std::vector<std::vector<Scalar>> x_t_k_neg;
-    x_t_k_neg.resize(M);
-    for (int t = 0; t < M; ++t) {
-        x_t_k_neg[t].reserve(m);
-        NthPower<Exponent> x_k(challenges[t]);
-        for (uint64_t k = 0; k < m; ++k) {
-            x_t_k_neg[t].emplace_back(x_k.pow.negate());
+        NthPower<Exponent> x_k(x);
+        for (std::size_t k = 0; k < m; k++) {
+            points.emplace_back(proof.Gk_[k]);
+            scalars.emplace_back(x_k.pow.negate() * w3);
             x_k.go_next();
         }
     }
 
-    GroupElement t2;
-    for (int t = 0; t < M; ++t) {
-        const std::vector <GroupElement>& Gk = proofs[t].Gk_;
-        GroupElement term;
-        for (std::size_t k = 0; k < m; ++k)
-        {
-            term += ((Gk[k]) * x_t_k_neg[t][k]);
-        }
-        term *= y[t];
-        t2 += term;
+    // Add common generators
+    points.emplace_back(g_);
+    scalars.emplace_back(g_scalar);
+    points.emplace_back(h_[0]);
+    scalars.emplace_back(h_scalar);
+    for (std::size_t i = 0; i < m * n; i++) {
+        points.emplace_back(h_[i]);
+        scalars.emplace_back(h_scalars[i]);
     }
-    GroupElement left(t1 + t2);
+    for (std::size_t i = 0; i < commits.size(); i++) {
+        points.emplace_back(commits[i]);
+        scalars.emplace_back(commit_scalars[i]);
+    }
 
-    right += g_ * exp;
-    if(left != right)
+    // Verify the batch
+    if(points.size() != scalars.size() || points.size() != final_size) {
+        LogPrintf("Unexpected final evaluation size");
         return false;
-
-    return true;
+    }
+    secp_primitives::MultiExponent result(points, scalars);
+    if (result.get_multiple().isInfinity()) {
+        return true;
+    }
+    return false;
 }
 
 template<class Exponent, class GroupElement>
@@ -311,8 +285,8 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::compute_fs(
         const SigmaPlusProof<Exponent, GroupElement>& proof,
         const Exponent& x,
         std::vector<Exponent>& f_) const {
-    for(unsigned int j = 0; j < proof.r1Proof_.f_.size(); ++j) {
-        if(proof.r1Proof_.f_[j] == x)
+    for (std::size_t j = 0; j < proof.r1Proof_.f_.size(); ++j) {
+        if (proof.r1Proof_.f_[j] == x)
             return false;
     }
 
@@ -321,35 +295,14 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::compute_fs(
     {
         f_.push_back(Scalar(uint64_t(0)));
         Scalar temp;
-        int k = n - 1;
-        for (int i = 0; i < k; ++i)
+        std::size_t k = n - 1;
+        for (std::size_t i = 0; i < k; ++i)
         {
             temp += proof.r1Proof_.f_[j * k + i];
             f_.emplace_back(proof.r1Proof_.f_[j * k + i]);
         }
         f_[j * n] = x - temp;
     }
-    return true;
-}
-
-template<class Exponent, class GroupElement>
-bool SigmaPlusVerifier<Exponent, GroupElement>::abcd_checks(
-        const SigmaPlusProof<Exponent, GroupElement>& proof,
-        const Exponent& x,
-        const std::vector<Exponent>& f_) const {
-    Exponent c;
-    c.randomize();
-
-    // Aggregating two checks into one, B^x * A = Comm(..) and C^x * D = Comm(..)
-    std::vector<Scalar> f_plus_f_prime;
-    f_plus_f_prime.reserve(f_.size());
-    for(std::size_t i = 0; i < f_.size(); i++)
-        f_plus_f_prime.emplace_back(f_[i] * c + f_[i] * (x - f_[i]));
-
-    GroupElement right;
-    SigmaPrimitives<Exponent, GroupElement>::commit(g_, h_, f_plus_f_prime, proof.r1Proof_.ZA_ * c + proof.r1Proof_.ZC_, right);
-    if(((proof.B_ * x + proof.r1Proof_.A_) * c + proof.r1Proof_.C_ * x + proof.r1Proof_.D_) != right)
-        return false;
     return true;
 }
 
@@ -365,14 +318,14 @@ void SigmaPlusVerifier<Exponent, GroupElement>::compute_fis(const Exponent& f_i,
     j--;
     if (j == -1)
     {
-        if(ptr < end_ptr)
+        if (ptr < end_ptr)
             *ptr++ += f_i;
         return;
     }
 
     Scalar t;
 
-    for (int i = 0; i < n; i++)
+    for (std::size_t i = 0; i < n; i++)
     {
         t = f[j * n + i];
         t *= f_i;
@@ -394,7 +347,7 @@ void SigmaPlusVerifier<Exponent, GroupElement>::compute_batch_fis(
     j--;
     if (j == -1)
     {
-        if(ptr >= start_ptr && ptr < end_ptr){
+        if (ptr >= start_ptr && ptr < end_ptr){
             *ptr++ += f_i * y;
             e += f_i;
         }
@@ -403,7 +356,7 @@ void SigmaPlusVerifier<Exponent, GroupElement>::compute_batch_fis(
 
     Exponent t;
 
-    for (int i = 0; i < n; i++)
+    for (std::size_t i = 0; i < n; i++)
     {
         t = f[j * n + i];
         t *= f_i;
