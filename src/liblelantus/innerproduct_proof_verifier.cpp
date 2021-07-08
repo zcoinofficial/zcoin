@@ -62,7 +62,7 @@ bool InnerProductProofVerifier::verify_util(
     return InnerProductProofVerifier(g_p, h_p, u_, p_p, version_).verify_util(proof, itr_l + 1, itr_r + 1, challengeGenerator);
 }
 
-bool InnerProductProofVerifier::verify_fast(std::size_t n, const Scalar& x, const InnerProductProof& proof, unique_ptr<ChallengeGenerator>& challengeGenerator) {
+bool InnerProductProofVerifier::verify_fast(std::size_t n, const Scalar& x, const InnerProductProof& proof, std::unique_ptr<ChallengeGenerator>& challengeGenerator) {
     u_  *= x;
     P_ += u_ * proof.c_;
     return verify_fast_util(n, proof, challengeGenerator);

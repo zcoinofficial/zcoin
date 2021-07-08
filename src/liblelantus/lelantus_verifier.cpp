@@ -213,7 +213,7 @@ bool LelantusVerifier::verify_rangeproof(
         commitments[0].emplace_back(Cout[i].getValue());
     }
 
-    std:vector<RangeProof> proofs;
+    std::vector<RangeProof> proofs;
     proofs.reserve(1); // size of batch
     proofs.emplace_back(bulletproof);
 
