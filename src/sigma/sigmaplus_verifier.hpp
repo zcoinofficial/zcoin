@@ -177,12 +177,12 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
         size_t size = setSizes[t];
         size_t start = commits.size() - size;
 
-        vector<Scalar>::iterator ptr = commit_scalars.begin() + start;
+        std::vector<Scalar>::iterator ptr = commit_scalars.begin() + start;
         compute_batch_fis(f_i, m, f_, w3, e, ptr, ptr, ptr + size - 1);
 
         if(fPadding[t]) {
             Scalar pow(uint64_t(1));
-            vector <Scalar> f_part_product;
+            std::vector <Scalar> f_part_product;
             for (std::size_t j = m; j > 0; j--) {
                 f_part_product.push_back(pow);
                 pow *= f_[(j - 1) * n + I_[size - 1][j - 1]];
