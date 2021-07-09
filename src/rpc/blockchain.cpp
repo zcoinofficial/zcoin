@@ -359,7 +359,8 @@ std::string EntryDescriptionString()
            "    \"ancestorfees\" : n,     (numeric) modified fees (see above) of in-mempool ancestors (including this one)\n"
            "    \"depends\" : [           (array) unconfirmed transactions used as inputs for this transaction\n"
            "        \"transactionid\",    (string) parent transaction id\n"
-           "       ... ]\n";
+           "       ... ],\n"
+           "    \"instantlock\" : true|false  (boolean) True if this transaction was locked via InstantSend\n";
 }
 
 void entryToJSON(UniValue &info, const CTxMemPoolEntry &e)
@@ -394,6 +395,7 @@ void entryToJSON(UniValue &info, const CTxMemPoolEntry &e)
     }
 
     info.push_back(Pair("depends", depends));
+    info.push_back(Pair("instantlock", llmq::quorumInstantSendManager->IsLocked(tx.GetHash())));
 }
 
 UniValue mempoolToJSON(bool fVerbose = false)
@@ -1376,6 +1378,7 @@ UniValue mempoolInfoToJSON()
     size_t maxmempool = GetArg("-maxmempool", DEFAULT_MAX_MEMPOOL_SIZE) * 1000000;
     ret.push_back(Pair("maxmempool", (int64_t) maxmempool));
     ret.push_back(Pair("mempoolminfee", ValueFromAmount(mempool.GetMinFee(maxmempool).GetFeePerK())));
+    ret.push_back(Pair("instantsendlocks", (int64_t)llmq::quorumInstantSendManager->GetInstantSendLockCount()));
 
     return ret;
 }
@@ -1393,6 +1396,7 @@ UniValue getmempoolinfo(const JSONRPCRequest& request)
             "  \"usage\": xxxxx,              (numeric) Total memory usage for the mempool\n"
             "  \"maxmempool\": xxxxx,         (numeric) Maximum memory usage for the mempool\n"
             "  \"mempoolminfee\": xxxxx       (numeric) Minimum fee for tx to be accepted\n"
+            "  \"instantsendlocks\": xxxxx,   (numeric) Number of unconfirmed instant send locks\n"
             "}\n"
             "\nExamples:\n"
             + HelpExampleCli("getmempoolinfo", "")

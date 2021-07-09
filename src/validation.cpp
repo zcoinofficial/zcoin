@@ -914,6 +914,18 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
     if (pool.exists(hash))
         return state.Invalid(false, REJECT_ALREADY_KNOWN, "txn-already-in-mempool");
 
+    llmq::CInstantSendLockPtr conflictLock = llmq::quorumInstantSendManager->GetConflictingLock(tx);
+    if (conflictLock) {
+        CTransactionRef txConflict;
+        uint256 hashBlock;
+        if (GetTransaction(conflictLock->txid, txConflict, Params().GetConsensus(), hashBlock)) {
+            GetMainSignals().NotifyInstantSendDoubleSpendAttempt(tx, *txConflict);
+        }
+        return state.DoS(10, error("AcceptToMemoryPool : Transaction %s conflicts with locked TX %s",
+                                   hash.ToString(), conflictLock->txid.ToString()),
+                         REJECT_INVALID, "tx-txlock-conflict");
+    }
+
     // Check for conflicts with in-memory transactions
     std::set<uint256> setConflicts;
     {
@@ -2489,6 +2501,7 @@ static ThresholdConditionCache warningcache[VERSIONBITS_NUM_BITS];
 static int64_t nTimeCheck = 0;
 static int64_t nTimeForks = 0;
 static int64_t nTimeVerify = 0;
+static int64_t nTimeISFilter = 0;
 static int64_t nTimeConnect = 0;
 static int64_t nTimeIndex = 0;
 static int64_t nTimeCallbacks = 0;
@@ -2799,6 +2812,35 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                     pindex->GetBlockHash().ToString(), pindex->nHeight, FormatStateMessage(state));
     }
     // END ZNODE
+
+    //CHECK TRANSACTIONS FOR INSTANTSEND
+    if (llmq::IsNewInstantSendEnabled()) {
+        // Require other nodes to comply, send them some data in case they are missing it.
+        for (const auto& tx : block.vtx) {
+            // skip txes that have no inputs
+            if (tx->vin.empty()) continue;
+            llmq::CInstantSendLockPtr conflictLock = llmq::quorumInstantSendManager->GetConflictingLock(*tx);
+            if (!conflictLock) {
+                continue;
+            }
+            if (llmq::chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash())) {
+                llmq::quorumInstantSendManager->RemoveChainLockConflictingLock(::SerializeHash(*conflictLock), *conflictLock);
+                assert(llmq::quorumInstantSendManager->GetConflictingLock(*tx) == nullptr);
+            } else {
+                // The node which relayed this should switch to correct chain.
+                // TODO: relay instantsend data/proof.
+                LOCK(cs_main);
+                mapRejectedBlocks.insert(std::make_pair(block.GetHash(), GetTime()));
+                return state.DoS(10, error("ConnectBlock(DASH): transaction %s conflicts with transaction lock %s", tx->GetHash().ToString(), conflictLock->txid.ToString()),
+                                 REJECT_INVALID, "conflict-tx-lock");
+            }
+        }
+    } else {
+        LogPrintf("ConnectBlock(): spork is off, skipping transaction locking checks\n");
+    }
+
+    int64_t nTime5_1 = GetTimeMicros(); nTimeISFilter += nTime5_1 - nTime4;
+    LogPrint("bench", "      - IS filter: %.2fms [%.2fs]\n", 0.001 * (nTime5_1 - nTime4), nTimeISFilter * 0.000001);
 
     if (!fJustCheck)
         MTPState::GetMTPState()->SetLastBlock(pindex, chainparams.GetConsensus());

@@ -37,6 +37,8 @@
 #include "evo/specialtx.h"
 #include "evo/spork.h"
 #include "llmq/quorums_commitment.h"
+#include "llmq/quorums_instantsend.h"
+#include "llmq/quorums_chainlocks.h"
 #include "evo/providertx.h"
 #include "lelantus.h"
 
@@ -183,6 +185,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
     }
     entry.push_back(Pair("vout", vout));
 
+    bool chainLock = false;
     if (!hashBlock.IsNull()) {
         entry.push_back(Pair("blockhash", hashBlock.GetHex()));
         BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
@@ -193,13 +196,19 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 entry.push_back(Pair("confirmations", 1 + chainActive.Height() - pindex->nHeight));
                 entry.push_back(Pair("time", pindex->GetBlockTime()));
                 entry.push_back(Pair("blocktime", pindex->GetBlockTime()));
-            }
-            else {
+
+                chainLock = llmq::chainLocksHandler->HasChainLock(pindex->nHeight, pindex->GetBlockHash());
+            } else {
                 entry.push_back(Pair("height", -1));
                 entry.push_back(Pair("confirmations", 0));
             }
         }
     }
+    bool fLLMQLocked = llmq::quorumInstantSendManager->IsLocked(txid);
+    entry.push_back(Pair("instantlock", fLLMQLocked || chainLock));
+    entry.push_back(Pair("instantlock_internal", fLLMQLocked));
+    entry.push_back(Pair("chainlock", chainLock));
+
     if (tx.nVersion >= 3) {
         switch(tx.nType){
             case TRANSACTION_PROVIDER_REGISTER:
@@ -293,6 +302,9 @@ UniValue getrawtransaction(const JSONRPCRequest& request)
             "  \"confirmations\" : n,      (numeric) The confirmations\n"
             "  \"time\" : ttt,             (numeric) The transaction time in seconds since epoch (Jan 1 1970 GMT)\n"
             "  \"blocktime\" : ttt         (numeric) The block time in seconds since epoch (Jan 1 1970 GMT)\n"
+            "  \"instantlock\" : true|false, (bool) Current transaction lock state\n"
+            "  \"instantlock_internal\" : true|false, (bool) Current internal transaction lock state\n"
+            "  \"chainlock\" : true|false, (bool) The state of the corresponding block chainlock\n"
             "}\n"
 
             "\nExamples:\n"

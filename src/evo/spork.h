@@ -161,15 +161,14 @@ inline bool IsChainlocksEnabled(const CBlockIndex *pindex)
     return CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureChainlocks, pindex);
 }
 
+inline bool IsNewInstantSendEnabled(const CBlockIndex *pindex)
+{
+    return CSporkManager::GetSporkManager()->IsFeatureEnabled(CSporkAction::featureInstantSend, pindex);
+}
+
 inline bool IsBlockFilteringEnabled()
 {
     return false;
 }
-
-inline int GetInstantsendMaxValue()
-{
-    return 500;
-}
-
 
 #endif

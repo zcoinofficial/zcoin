@@ -22,6 +22,8 @@
 #include "../sigma/spend_metadata.h"
 #include "../sigma/coin.h"
 #include "lelantus.h"
+#include "llmq/quorums_instantsend.h"
+#include "llmq/quorums_chainlocks.h"
 #include "net.h"
 #include "policy/policy.h"
 #include "primitives/block.h"
@@ -1295,7 +1297,7 @@ bool CWallet::AbandonTransaction(const uint256& hashTx)
     // Can't mark abandoned if confirmed or in mempool
     assert(mapWallet.count(hashTx));
     CWalletTx& origtx = mapWallet[hashTx];
-    if (origtx.GetDepthInMainChain() > 0 || origtx.InMempool() || origtx.InStempool()) {
+    if (origtx.GetDepthInMainChain() > 0 || origtx.InMempool() || origtx.InStempool() || origtx.IsLockedByLLMQInstantSend()) {
         return false;
     }
 
@@ -2161,7 +2163,7 @@ void CWallet::ReacceptWalletTransactions()
 
         int nDepth = wtx.GetDepthInMainChain();
 
-        if (!wtx.IsCoinBase() && (nDepth == 0 && !wtx.isAbandoned())) {
+        if (!wtx.IsCoinBase() && (nDepth == 0 && !wtx.isAbandoned() && !wtx.IsLockedByLLMQInstantSend())) {
             mapSorted.insert(std::make_pair(wtx.nOrderPos, &wtx));
         }
     }
@@ -2421,6 +2423,8 @@ bool CWalletTx::IsTrusted() const
         return true;
     if (nDepth < 0)
         return false;
+    if (IsLockedByLLMQInstantSend())
+        return true;
     if (!bSpendZeroConfChange || !IsFromMe(ISMINE_ALL)) // using wtx's cached debit
         return false;
 
@@ -2811,7 +2815,7 @@ CAmount CWallet::SelectSpendCoinsForAmount(
 // wallet, and then subtracts the values of TxIns spending from the wallet. This
 // also has fewer restrictions on which unconfirmed transactions are considered
 // trusted.
-CAmount CWallet::GetLegacyBalance(const isminefilter& filter, int minDepth, const std::string* account) const
+CAmount CWallet::GetLegacyBalance(const isminefilter& filter, int minDepth, const std::string* account, bool fAddLocked) const
 {
     LOCK2(cs_main, cs_wallet);
 
@@ -3286,7 +3290,7 @@ CAmount CWallet::GetUnconfirmedBalance() const {
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
             if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 &&
-                (pcoin->InMempool() || pcoin->InStempool()))
+                (pcoin->InMempool() || pcoin->InStempool()) && !pcoin->IsLockedByLLMQInstantSend())
                 nTotal += pcoin->GetAvailableCredit();
         }
     }
@@ -3326,7 +3330,7 @@ CAmount CWallet::GetUnconfirmedWatchOnlyBalance() const {
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it) {
             const CWalletTx *pcoin = &(*it).second;
             if (!pcoin->IsTrusted() && pcoin->GetDepthInMainChain() == 0 &&
-                (pcoin->InMempool() || pcoin->InStempool()))
+                (pcoin->InMempool() || pcoin->InStempool()) && !pcoin->IsLockedByLLMQInstantSend())
                 nTotal += pcoin->GetAvailableWatchOnlyCredit();
         }
     }
@@ -3347,7 +3351,7 @@ CAmount CWallet::GetImmatureWatchOnlyBalance() const
     return nTotal;
 }
 
-void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue) const
+void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed, const CCoinControl *coinControl, bool fIncludeZeroValue, bool fUseInstantSend) const
 {
     static const int ZNODE_COIN_REQUIRED  = 1000;
     vCoins.clear();
@@ -3355,6 +3359,8 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
 
     {
         LOCK2(cs_main, cs_wallet);
+        int nInstantSendConfirmationsRequired = Params().GetConsensus().nInstantSendConfirmationsRequired;
+
         for (std::map<uint256, CWalletTx>::const_iterator it = mapWallet.begin(); it != mapWallet.end(); ++it)
         {
             const uint256& wtxid = it->first;
@@ -3370,9 +3376,9 @@ void CWallet::AvailableCoins(std::vector <COutput> &vCoins, bool fOnlyConfirmed,
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain(false);
-            // do not use IX for inputs that have less then INSTANTSEND_CONFIRMATIONS_REQUIRED blockchain confirmations
-//            if (fUseInstantSend && nDepth < INSTANTSEND_CONFIRMATIONS_REQUIRED)
-//                continue;
+            // do not use IX for inputs that have less then nInstantSendConfirmationsRequired blockchain confirmations
+            if (fUseInstantSend && nDepth < nInstantSendConfirmationsRequired)
+                continue;
 
             // We should not consider coins from transactions that are replacing
             // other transactions.
@@ -3693,7 +3699,7 @@ static void ApproximateBestSubset(std::vector<std::pair<CAmount, std::pair<const
 }
 
 bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMine, const int nConfTheirs, const uint64_t nMaxAncestors, std::vector<COutput> vCoins,
-                                 std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const
+                                 std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, bool fForUseInInstantSend) const
 {
     setCoinsRet.clear();
     nValueRet = 0;
@@ -3714,7 +3720,9 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
 
         const CWalletTx *pcoin = output.tx;
 
-        if (output.nDepth < ((pcoin->IsFromMe(ISMINE_ALL) || pcoin->tx->IsLelantusMint()) ? nConfMine : nConfTheirs))
+            bool fLockedByIS = pcoin->IsLockedByLLMQInstantSend();
+
+        if (output.nDepth < ((pcoin->IsFromMe(ISMINE_ALL) || pcoin->tx->IsLelantusMint()) ? nConfMine : nConfTheirs) && !fLockedByIS)
             continue;
 
         if (!mempool.TransactionWithinChainLimit(pcoin->GetHash(), nMaxAncestors))
@@ -3767,9 +3775,9 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     std::vector<char> vfBest;
     CAmount nBest;
 
-    ApproximateBestSubset(vValue, nTotalLower, nTargetValue, vfBest, nBest);
+    ApproximateBestSubset(vValue, nTotalLower, nTargetValue, vfBest, nBest, fForUseInInstantSend);
     if (nBest != nTargetValue && nTotalLower >= nTargetValue + MIN_CHANGE)
-        ApproximateBestSubset(vValue, nTotalLower, nTargetValue + MIN_CHANGE, vfBest, nBest);
+        ApproximateBestSubset(vValue, nTotalLower, nTargetValue + MIN_CHANGE, vfBest, nBest, fForUseInInstantSend);
 
     // If we have a bigger coin and (either the stochastic approximation didn't find a good solution,
     //                                   or the next bigger coin is closer), return the bigger coin
@@ -3797,7 +3805,7 @@ bool CWallet::SelectCoinsMinConf(const CAmount& nTargetValue, const int nConfMin
     return true;
 }
 
-bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl) const
+bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, const CCoinControl* coinControl, bool fForUseInInstantSend) const
 {
     std::vector<COutput> vCoins(vAvailableCoins);
     CoinType nCoinType = coinControl ? coinControl->nCoinType : CoinType::ALL_COINS;
@@ -3850,13 +3858,13 @@ bool CWallet::SelectCoins(const std::vector<COutput>& vAvailableCoins, const CAm
     bool fRejectLongChains = GetBoolArg("-walletrejectlongchains", DEFAULT_WALLET_REJECT_LONG_CHAINS);
 
     bool res = nTargetValue <= nValueFromPresetInputs ||
-        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 6, 0, vCoins, setCoinsRet, nValueRet) ||
-        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 1, 0, vCoins, setCoinsRet, nValueRet) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, 2, vCoins, setCoinsRet, nValueRet)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::min((size_t)4, nMaxChainLength/3), vCoins, setCoinsRet, nValueRet)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength/2, vCoins, setCoinsRet, nValueRet)) ||
-        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength, vCoins, setCoinsRet, nValueRet)) ||
-        (bSpendZeroConfChange && !fRejectLongChains && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::numeric_limits<uint64_t>::max(), vCoins, setCoinsRet, nValueRet));
+        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 6, 0, vCoins, setCoinsRet, nValueRet, fForUseInInstantSend) ||
+        SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 1, 1, 0, vCoins, setCoinsRet, nValueRet, fForUseInInstantSend) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, 2, vCoins, setCoinsRet, nValueRet, fForUseInInstantSend)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::min((size_t)4, nMaxChainLength/3), vCoins, setCoinsRet, nValueRet, fForUseInInstantSend)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength/2, vCoins, setCoinsRet, nValueRet, fForUseInInstantSend)) ||
+        (bSpendZeroConfChange && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, nMaxChainLength, vCoins, setCoinsRet, nValueRet, fForUseInInstantSend)) ||
+        (bSpendZeroConfChange && !fRejectLongChains && SelectCoinsMinConf(nTargetValue - nValueFromPresetInputs, 0, 1, std::numeric_limits<uint64_t>::max(), vCoins, setCoinsRet, nValueRet, fForUseInInstantSend));
 
     // because SelectCoinsMinConf clears the setCoinsRet, we now add the possible inputs to the coinset
     setCoinsRet.insert(setPresetCoins.begin(), setPresetCoins.end());
@@ -3942,9 +3950,8 @@ bool CWallet::ConvertList(std::vector <CTxIn> vecTxIn, std::vector <CAmount> &ve
 }
 
 bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletTx& wtxNew, CReserveKey& reservekey, CAmount& nFeeRet,
-                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, int nExtraPayloadSize)
+                                int& nChangePosInOut, std::string& strFailReason, const CCoinControl* coinControl, bool sign, int nExtraPayloadSize, bool fUseInstantSend)
 {
-    // TODO: upgrade dash version
     CAmount nFeePay = 0;
 
     CAmount nValue = 0;
@@ -4010,7 +4017,8 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
         LOCK2(cs_main, cs_wallet);
         {
             std::vector<COutput> vAvailableCoins;
-            AvailableCoins(vAvailableCoins, true, coinControl, false);
+            AvailableCoins(vAvailableCoins, true, coinControl, false, fUseInstantSend);
+            int nInstantSendConfirmationsRequired = Params().GetConsensus().nInstantSendConfirmationsRequired;
 
             nFeeRet = 0;
             if(nFeePay > 0) nFeeRet = nFeePay;
@@ -4062,7 +4070,7 @@ bool CWallet::CreateTransaction(const std::vector<CRecipient>& vecSend, CWalletT
                 // Choose coins to use
                 CAmount nValueIn = 0;
                 setCoins.clear();
-                if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl))
+                if (!SelectCoins(vAvailableCoins, nValueToSelect, setCoins, nValueIn, coinControl, fUseInstantSend))
                 {
                     strFailReason = _("Insufficient funds");
                     return false;
@@ -6047,7 +6055,7 @@ std::map<CTxDestination, CAmount> CWallet::GetAddressBalances()
                 continue;
 
             int nDepth = pcoin->GetDepthInMainChain();
-            if (nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? 0 : 1))
+            if ((nDepth < (pcoin->IsFromMe(ISMINE_ALL) ? 0 : 1)) && !pcoin->IsLockedByLLMQInstantSend())
                 continue;
 
             for (unsigned int i = 0; i < pcoin->tx->vout.size(); i++)
@@ -7413,6 +7421,21 @@ int CMerkleTx::GetDepthInMainChain(const CBlockIndex *&pindexRet, bool enableIX)
     }
 
     return nResult;
+}
+
+bool CMerkleTx::IsLockedByLLMQInstantSend() const
+{
+    return llmq::quorumInstantSendManager->IsLocked(GetHash());
+}
+
+bool CMerkleTx::IsChainLocked() const
+{
+    AssertLockHeld(cs_main);
+    BlockMap::iterator mi = mapBlockIndex.find(hashBlock);
+    if (mi != mapBlockIndex.end() && mi->second != nullptr) {
+        return llmq::chainLocksHandler->HasChainLock(mi->second->nHeight, hashBlock);
+    }
+    return false;
 }
 
 int CMerkleTx::GetDepthInMainChain(const CBlockIndex* &pindexRet) const

@@ -1516,4 +1516,9 @@ void CInstantSendManager::WorkThreadMain()
     }
 }
 
+bool IsNewInstantSendEnabled()
+{
+    return ::IsNewInstantSendEnabled();
+}
+
 }

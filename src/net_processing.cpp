@@ -937,7 +937,7 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
                 recentRejects->reset();
             }
 
-            return recentRejects->contains(inv.hash) ||
+            return (recentRejects->contains(inv.hash) && !llmq::quorumInstantSendManager->IsLocked(inv.hash)) ||
                    mempool.exists(inv.hash) ||
                    mapOrphanTransactions.count(inv.hash) ||
                    pcoinsTip->HaveCoinInCache(COutPoint(inv.hash, 0)) || // Best effort: only try output 0 and 1
@@ -973,10 +973,8 @@ bool static AlreadyHave(const CInv& inv) EXCLUSIVE_LOCKS_REQUIRED(cs_main)
         return llmq::quorumSigningManager->AlreadyHave(inv);
     case MSG_CLSIG:
         return llmq::chainLocksHandler->AlreadyHave(inv);
-    /*
     case MSG_ISLOCK:
         return llmq::quorumInstantSendManager->AlreadyHave(inv);
-    */
     }
     // Don't know what it is, just say we already got one
     return true;
@@ -1257,6 +1255,14 @@ void static ProcessGetData(CNode* pfrom, const Consensus::Params& consensusParam
                     llmq::CChainLockSig o;
                     if (llmq::chainLocksHandler->GetChainLockByHash(inv.hash, o)) {
                         connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::CLSIG, o));
+                        pushed = true;
+                    }
+                }
+
+                if (!pushed && (inv.type == MSG_ISLOCK)) {
+                    llmq::CInstantSendLock o;
+                    if (llmq::quorumInstantSendManager->GetInstantSendLockByHash(inv.hash, o)) {
+                        connman.PushMessage(pfrom, msgMaker.Make(NetMsgType::ISLOCK, o));
                         pushed = true;
                     }
                 }

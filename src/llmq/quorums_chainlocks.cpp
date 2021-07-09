@@ -289,7 +289,7 @@ void CChainLocksHandler::TrySignChainTip()
     // considered safe when it is ixlocked or at least known since 10 minutes (from mempool or block). These checks are
     // performed for the tip (which we try to sign) and the previous 5 blocks. If a ChainLocked block is found on the
     // way down, we consider all TXs to be safe.
-    if (IsNewInstantSendEnabled() && IsBlockFilteringEnabled()) {
+    if (IsNewInstantSendEnabled()) {
         auto pindexWalk = pindex;
         while (pindexWalk) {
             if (pindex->nHeight - pindexWalk->nHeight > 5) {
@@ -441,9 +441,6 @@ CChainLocksHandler::BlockTxs::mapped_type CChainLocksHandler::GetBlockTxs(const 
 
 bool CChainLocksHandler::IsTxSafeForMining(const uint256& txid)
 {
-    if (!IsBlockFilteringEnabled()) {
-        return true;
-    }
     if (!IsNewInstantSendEnabled()) {
         return true;
     }
