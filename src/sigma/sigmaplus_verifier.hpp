@@ -99,12 +99,12 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
     std::vector<Scalar> commit_scalars; // associated to commitment list
     h_scalars.reserve(n * m);
     h_scalars.resize(n * m);
-    for (size_t i = 0; i < n * m; i++) {
+    for (std::size_t i = 0; i < n * m; i++) {
         h_scalars[i] = Scalar(uint64_t(0));
     }
     commit_scalars.reserve(commits.size());
     commit_scalars.resize(commits.size());
-    for (size_t i = 0; i < commits.size(); i++) {
+    for (std::size_t i = 0; i < commits.size(); i++) {
         commit_scalars[i] = Scalar(uint64_t(0));
     }
 
@@ -174,8 +174,8 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
 
         Scalar f_i(uint64_t(1));
         Scalar e;
-        size_t size = setSizes[t];
-        size_t start = commits.size() - size;
+        std::size_t size = setSizes[t];
+        std::size_t start = commits.size() - size;
 
         std::vector<Scalar>::iterator ptr = commit_scalars.begin() + start;
         compute_batch_fis(f_i, m, f_, w3, e, ptr, ptr, ptr + size - 1);
@@ -183,9 +183,9 @@ bool SigmaPlusVerifier<Exponent, GroupElement>::batch_verify(
         if(fPadding[t]) {
             Scalar pow(uint64_t(1));
             std::vector <Scalar> f_part_product;
-            for (std::size_t j = m; j > 0; j--) {
+            for (std::ptrdiff_t j = m - 1; j >= 0; j--) {
                 f_part_product.push_back(pow);
-                pow *= f_[(j - 1) * n + I_[size - 1][j - 1]];
+                pow *= f_[j*n + I_[size - 1][j]];
             }
 
             NthPower<Exponent> xj(x);

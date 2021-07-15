@@ -84,9 +84,9 @@ void SigmaPlusProver<Exponent, GroupElement>::proof(
         std::vector<std::vector<Exponent>> partial_p_s;
 
         // Pre-calculate product parts and calculate p_s(x) at the same time, put the latter into p_i_sum
-        for (std::size_t j = m_; j > 0; j--) {
+        for (std::ptrdiff_t j = m_ - 1; j >= 0; j--) {
             partial_p_s.push_back(p_i_sum);
-            SigmaPrimitives<Exponent, GroupElement>::new_factor(sigma[(j - 1) * n_ + I[j - 1]], a[(j - 1) * n_ + I[j - 1]], p_i_sum);
+            SigmaPrimitives<Exponent, GroupElement>::new_factor(sigma[j*n_ + I[j]], a[j*n_ + I[j]], p_i_sum);
         }
 
         for (std::size_t j = 0; j < m_; j++) {
