@@ -43,7 +43,7 @@ bool SigmaExtendedVerifier::singleverify(
         const std::vector<GroupElement>& commits,
         const Scalar& x,
         const Scalar& serial,
-        const size_t setSize,
+        const std::size_t setSize,
         const SigmaExtendedProof& proof) const {
     std::vector<Scalar> challenges = { x };
     std::vector<Scalar> serials = { serial };
@@ -88,7 +88,7 @@ bool SigmaExtendedVerifier::batchverify(
         const std::vector<GroupElement>& commits,
         const std::vector<Scalar>& challenges,
         const std::vector<Scalar>& serials,
-        const std::vector<size_t>& setSizes,
+        const std::vector<std::size_t>& setSizes,
         const std::vector<SigmaExtendedProof>& proofs) const {
 
     return verify(
@@ -107,7 +107,7 @@ bool SigmaExtendedVerifier::verify(
         const std::vector<GroupElement>& commits,
         const std::vector<Scalar>& challenges,
         const std::vector<Scalar>& serials,
-        const std::vector<size_t>& setSizes,
+        const std::vector<std::size_t>& setSizes,
         const bool commonChallenge,
         const bool specifiedSetSizes,
         const std::vector<SigmaExtendedProof>& proofs) const {
@@ -164,7 +164,7 @@ bool SigmaExtendedVerifier::verify(
     std::vector<Scalar> commit_scalars; // associated to commitment list
     h_scalars.reserve(n * m);
     h_scalars.resize(n * m);
-    for (size_t i = 0; i < n * m; i++) {
+    for (std::size_t i = 0; i < n * m; i++) {
         h_scalars[i] = Scalar(uint64_t(0));
     }
     commit_scalars.reserve(commits.size());
@@ -259,9 +259,9 @@ bool SigmaExtendedVerifier::verify(
 
         Scalar pow(uint64_t(1));
         std::vector<Scalar> f_part_product;
-        for (std::size_t j = m; j > 0; j--) {
+        for (std::ptrdiff_t j = m - 1; j >= 0; j--) {
             f_part_product.push_back(pow);
-            pow *= f_[(j - 1) * n + I_[setSize - 1][j - 1]];
+            pow *= f_[j*n + I_[setSize - 1][j]];
         }
 
         NthPower xj(x);
@@ -426,7 +426,7 @@ void SigmaExtendedVerifier::compute_batch_fis(
 
     Scalar t;
 
-    for (int i = 0; i < n; i++)
+    for (std::size_t i = 0; i < n; i++)
     {
         t = f[j * n + i];
         t *= f_i;
