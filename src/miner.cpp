@@ -49,6 +49,7 @@
 #include "evo/spork.h"
 
 #include "llmq/quorums_blockprocessor.h"
+#include "llmq/quorums_chainlocks.h"
 
 #include <utility>
 
@@ -355,6 +356,9 @@ bool BlockAssembler::TestPackageTransactions(const CTxMemPool::setEntries& packa
     BOOST_FOREACH (const CTxMemPool::txiter it, package) {
         if (!IsFinalTx(it->GetTx(), nHeight, nLockTimeCutoff))
             return false;
+        if (!llmq::chainLocksHandler->IsTxSafeForMining(it->GetTx().GetHash())) {
+		return false;
+	}
         if (!fIncludeWitness && it->GetTx().HasWitness())
             return false;
         if (fNeedSizeAccounting) {

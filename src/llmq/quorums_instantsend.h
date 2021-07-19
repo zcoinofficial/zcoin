@@ -167,8 +167,6 @@ public:
 
 extern CInstantSendManager* quorumInstantSendManager;
 
-bool IsNewInstantSendEnabled();
-
 }
 
 #endif//DASH_QUORUMS_INSTANTSEND_H

@@ -2814,7 +2814,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
     // END ZNODE
 
     //CHECK TRANSACTIONS FOR INSTANTSEND
-    if (llmq::IsNewInstantSendEnabled()) {
+    if (IsNewInstantSendEnabled(chainActive.Tip())) {
         // Require other nodes to comply, send them some data in case they are missing it.
         for (const auto& tx : block.vtx) {
             // skip txes that have no inputs

@@ -70,7 +70,6 @@ public:
         return PARENT::try_lock();
     }
 };
-
 #ifdef DEBUG_LOCKORDER
 void EnterCritical(const char* pszName, const char* pszFile, int nLine, void* cs, bool fTry = false);
 void LeaveCritical();

@@ -219,7 +219,14 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
 
         coinbasevalue = bt['coinbasevalue']
         miner_address = node.getnewaddress()
-        mn_payee = bt['masternode'][0]['payee']
+        mn_payee = bt['znode'][0]['payee']
+        founders = [
+            ("TDk19wPKYq91i18qmY6U9FeTdTxwPeSveo", 1),
+            ("TWZZcDGkNixTAMtRBqzZkkMHbq1G6vUTk5", 1),
+            ("TRZTFdNCKCKbLMQV8cZDkQN9Vwuuq4gDzT", 1),
+            ("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve", 3),
+            ("TCsTzQZKVn4fao8jDmB9zQBk9YQNEZ3XfS", 1)
+        ]
 
         # calculate fees that the block template included (we'll have to remove it from the coinbase as we won't
         # include the template's transactions
@@ -245,9 +252,15 @@ class LLMQ_IS_CL_Conflicts(EvoZnodeTestFramework):
         mn_amount = get_masternode_payment(height, coinbasevalue)
         miner_amount = coinbasevalue - mn_amount
 
+        for founder in founders:
+            miner_amount -= founder[1]
+
         outputs = {miner_address: str(Decimal(miner_amount) / COIN)}
         if mn_amount > 0:
             outputs[mn_payee] = str(Decimal(mn_amount) / COIN)
+
+        for founder in founders:
+           outputs[founder[0]] = founder[1]
 
         coinbase = FromHex(CTransaction(), node.createrawtransaction([], outputs))
         coinbase.vin = create_coinbase(height).vin
