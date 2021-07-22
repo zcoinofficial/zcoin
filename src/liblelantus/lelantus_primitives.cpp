@@ -4,6 +4,37 @@
 namespace lelantus {
 
 static std::string lts("LELANTUS_SIGMA");
+
+// Invert a vector of scalars
+//
+// This _requires_ that all scalars be nonzero!
+std::vector<Scalar> LelantusPrimitives::invert(const std::vector<Scalar>& scalars) {
+    std::size_t n = scalars.size();
+
+    std::vector<Scalar> result;
+    result.reserve(n);
+    result.resize(n);
+    std::vector<Scalar> scratch;
+    scratch.reserve(n);
+    Scalar acc(uint64_t(1));
+    Scalar temp;
+
+    for (std::size_t i = 0; i < n; i++) {
+        if (scalars[i] == Scalar(uint64_t(0))) {
+            throw std::runtime_error("Cannot invert a zero scalar");
+        }
+        scratch.emplace_back(acc);
+        acc *= scalars[i];
+    }
+    acc = acc.inverse();
+    for (std::size_t i = n; i > 0; i--) {
+        temp = acc * scalars[i - 1];
+        result[i - 1] = acc * scratch[i - 1];
+        acc = temp;
+    }
+
+    return result;
+}
     
 void LelantusPrimitives::generate_challenge(
         const std::vector<GroupElement>& group_elements,
@@ -212,7 +243,7 @@ GroupElement LelantusPrimitives::p_prime(
     return L * x_square + P_ + R * (x_square.inverse());
 }
 
-Scalar LelantusPrimitives::delta(const Scalar& y, const Scalar& z, uint64_t n,  uint64_t m){
+Scalar LelantusPrimitives::delta(const Scalar& y, const Scalar& z, std::size_t n, std::size_t m){
     Scalar y_;
     Scalar two_;
     NthPower y_n(y);

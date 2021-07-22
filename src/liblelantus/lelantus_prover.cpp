@@ -203,11 +203,13 @@ void LelantusProver::generate_bulletproofs(
     v_s.reserve(m);
     serials.reserve(m);
     randoms.reserve(m);
+    // NOTE: this prepends zero-value group elements, apparently as an earlier coding error
+    // This doesn't hurt anything, and so is retained here for compatibility reasons
     std::vector<GroupElement> commitments(Cout.size());
     for (std::size_t i = 0; i < Cout.size(); ++i)
     {
-        v_s.push_back(Cout[i].getV());
-        v_s.push_back(Cout[i].getVScalar() +  params->get_limit_range());
+        v_s.push_back(Cout[i].getV()); // Ensure that v >= 0
+        v_s.push_back(Cout[i].getVScalar() +  params->get_limit_range()); // Ensure that v <= ZC_LELANTUS_MAX_MINT
         serials.insert(serials.end(), 2, Cout[i].getSerialNumber());
         randoms.insert(randoms.end(), 2, Cout[i].getRandomness());
         commitments.emplace_back(Cout[i].getPublicCoin().getValue());
@@ -226,7 +228,7 @@ void LelantusProver::generate_bulletproofs(
     h_.insert(h_.end(), params->get_bulletproofs_h().begin(), params->get_bulletproofs_h().begin() + (n * m));
 
     RangeProver rangeProver(params->get_h1(), params->get_h0(), params->get_g(), g_, h_, n, version);
-    rangeProver.batch_proof(v_s, serials, randoms, commitments, bulletproofs);
+    rangeProver.proof(v_s, serials, randoms, commitments, bulletproofs);
 
 }
 
