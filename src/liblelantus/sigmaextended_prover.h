@@ -9,11 +9,11 @@ class SigmaExtendedProver{
 
 public:
     SigmaExtendedProver(const GroupElement& g,
-                    const std::vector<GroupElement>& h_gens, uint64_t n, uint64_t m);
+                    const std::vector<GroupElement>& h_gens, std::size_t n, std::size_t m);
 
     void sigma_commit(
             const std::vector<GroupElement>& commits,
-            int l,
+            std::size_t l,
             const Scalar& rA,
             const Scalar& rB,
             const Scalar& rC,
@@ -43,8 +43,8 @@ public:
 private:
     GroupElement g_;
     std::vector<GroupElement> h_;
-    uint64_t n_;
-    uint64_t m_;
+    std::size_t n_;
+    std::size_t m_;
 };
 
 }//namespace lelantus

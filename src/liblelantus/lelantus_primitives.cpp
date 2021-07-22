@@ -53,9 +53,9 @@ GroupElement LelantusPrimitives::double_commit(
 }
 
 void LelantusPrimitives::convert_to_sigma(
-        uint64_t num,
-        uint64_t n,
-        uint64_t m,
+        std::size_t num,
+        std::size_t n,
+        std::size_t m,
         std::vector<Scalar>& out) {
     out.reserve(n * m);
     Scalar one(uint64_t(1));
@@ -74,11 +74,11 @@ void LelantusPrimitives::convert_to_sigma(
     }
 }
 
-std::vector<uint64_t> LelantusPrimitives::convert_to_nal(
-        uint64_t num,
-        uint64_t n,
-        uint64_t m) {
-    std::vector<uint64_t> result;
+std::vector<std::size_t> LelantusPrimitives::convert_to_nal(
+        std::size_t num,
+        std::size_t n,
+        std::size_t m) {
+    std::vector<std::size_t> result;
     result.reserve(m);
     while (num != 0)
     {
