@@ -4,11 +4,22 @@
 #include "../validation.h"
 #include "../wallet/coincontrol.h"
 #include "../wallet/wallet.h"
+#include "../net.h"
 
 #include "test_bitcoin.h"
 #include "fixtures.h"
 #include <iostream>
 #include <boost/test/unit_test.hpp>
+
+static bool CommitToMempool(const CTransaction &tx)
+{
+    CWallet *wallet = pwalletMain;
+    CWalletTx walletTx(wallet, MakeTransactionRef(tx));
+    CReserveKey reserveKey(wallet);
+    CValidationState state;
+    wallet->CommitTransaction(walletTx, reserveKey, g_connman.get(), state);
+    return mempool.exists(tx.GetHash());
+}
 
 namespace lelantus {
 
@@ -70,7 +81,7 @@ public:
         std::vector<Scalar> &serials) {
         for (auto const &in : tx.vin) {
             if (in.IsLelantusJoinSplit()) {
-                auto js = ParseLelantusJoinSplit(in);
+                auto js = ParseLelantusJoinSplit(tx);
                 auto const &s = js->getCoinSerialNumbers();
                 serials.insert(serials.end(), s.begin(), s.end());
             }
@@ -577,7 +588,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
         wtx);
 
     CMutableTransaction joinsplitTx(wtx);
-    auto joinsplit = ParseLelantusJoinSplit(joinsplitTx.vin[0]);
+    auto joinsplit = ParseLelantusJoinSplit(joinsplitTx);
 
     // test get join split amounts
     BOOST_CHECK_EQUAL(1, GetSpendInputs(joinsplitTx));
@@ -601,7 +612,7 @@ BOOST_AUTO_TEST_CASE(checktransaction)
 
     info = CLelantusTxInfo();
     BOOST_CHECK(CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
 
     // test surge dection.
     while (!lelantusState->IsSurgeConditionDetected()) {
@@ -612,7 +623,75 @@ BOOST_AUTO_TEST_CASE(checktransaction)
     }
 
     BOOST_CHECK(!CheckLelantusTransaction(
-        joinsplitTx, state, joinsplitTx.GetHash(), false, INT_MAX, false, true, NULL, &info));
+        joinsplitTx, state, joinsplitTx.GetHash(), false, chainActive.Height(), false, true, NULL, &info));
+}
+
+BOOST_AUTO_TEST_CASE(move_to_v3_payload)
+{
+    int prevHeight;
+    pwalletMain->SetBroadcastTransactions(true);
+
+    for (int n=chainActive.Height(); n<700; n++)
+        GenerateBlock({});
+
+    std::vector<CMutableTransaction> lelantusMints;
+    GenerateMints({1*COIN, 2*COIN, 3*COIN, 4*COIN, 5*COIN}, lelantusMints);
+    GenerateBlock(lelantusMints);
+
+    for (int i=0; i<6; i++)
+        GenerateBlock({});
+
+    // Shift HF block number to create joinsplit with v3 payload early
+    Consensus::Params &mutableParams = const_cast<Consensus::Params &>(::Params().GetConsensus());
+    int v3PayloadHFBackup = mutableParams.nLelantusV3PayloadStartBlock;
+    mutableParams.nLelantusV3PayloadStartBlock = chainActive.Height();
+
+    CWalletTx jsWalletTx1, jsWalletTx2, jsWalletTx3;
+
+    pwalletMain->JoinSplitLelantus({{script, COIN/10, false}}, {}, jsWalletTx1);
+    ::mempool.clear();
+
+    // Test transaction structure
+    BOOST_ASSERT(jsWalletTx1.tx->vin[0].scriptSig.size() == 1);
+
+    CBlock blockWithPayloadJS = CreateBlock({*jsWalletTx1.tx}, coinbaseKey);
+
+    mutableParams.nLelantusV3PayloadStartBlock = v3PayloadHFBackup;
+
+    // transaction shouldn't get accepted into the mempool
+    BOOST_ASSERT(!::CommitToMempool(*jsWalletTx1.tx));
+    // block with this transaction shouldn't be accepted either
+    prevHeight = chainActive.Height();
+    ProcessNewBlock(::Params(), std::make_shared<CBlock>(blockWithPayloadJS), true, nullptr);
+    BOOST_ASSERT(chainActive.Height() == prevHeight);
+
+    // Create wallet transaction with lelantus data in scriptSig
+    pwalletMain->JoinSplitLelantus({{script, COIN/10, false}}, {}, jsWalletTx2);
+    // ensure it has lelantus data in scriptSig
+    BOOST_ASSERT(jsWalletTx2.tx->vin[0].scriptSig.size() > 1);
+    // should get into the mempool
+    BOOST_ASSERT(::mempool.size() == 1);
+    // should get into the block
+    GenerateBlock({*jsWalletTx2.tx});
+    BOOST_ASSERT(::mempool.size() == 0);
+
+    // Create another wallet transaction with lelantus data in scriptSig
+    pwalletMain->JoinSplitLelantus({{script, COIN/10, false}}, {}, jsWalletTx3);
+    ::mempool.clear();
+
+    // fast forward to HF
+    for (int n=chainActive.Height(); n<mutableParams.nLelantusV3PayloadStartBlock; n++)
+        GenerateBlock({});
+
+    // non-payload tx shouldn't get into the mempool
+    BOOST_ASSERT(!CommitToMempool(*jsWalletTx3.tx));
+    // create a block with such tx and ensure it doesn't get accepted
+    mutableParams.nLelantusV3PayloadStartBlock += 10;
+    CBlock blockWithNonpayloadJS = CreateBlock({*jsWalletTx3.tx}, coinbaseKey);
+    mutableParams.nLelantusV3PayloadStartBlock = v3PayloadHFBackup;
+    prevHeight = chainActive.Height();
+    ProcessNewBlock(::Params(), std::make_shared<CBlock>(blockWithNonpayloadJS), true, nullptr);
+    BOOST_ASSERT(chainActive.Height() == prevHeight);
 }
 
 BOOST_AUTO_TEST_CASE(spend_limitation_per_tx)
@@ -724,8 +803,10 @@ BOOST_AUTO_TEST_CASE(parse_joinsplit)
 
     auto gs = g.Get();
     CTxIn inp(COutPoint(), gs.first);
+    CMutableTransaction inpTx;
+    inpTx.vin.push_back(inp);
 
-    auto result = ParseLelantusJoinSplit(inp);
+    auto result = ParseLelantusJoinSplit(inpTx);
 
     BOOST_CHECK(gs.second.getCoinSerialNumbers() == result->getCoinSerialNumbers());
     BOOST_CHECK(gs.second.getFee() == result->getFee());

@@ -197,6 +197,8 @@ enum opcodetype
     OP_LELANTUSMINT = 0xc5,
     OP_LELANTUSJMINT = 0xc6,
     OP_LELANTUSJOINSPLIT = 0xc7,
+    // joinsplit in payload
+    OP_LELANTUSJOINSPLITPAYLOAD = 0xc9,
 
     // input for reminting zerocoin to sigma (v3)
     OP_ZEROCOINTOSIGMAREMINT = 0xc8

@@ -34,7 +34,8 @@ public:
     void Add(CWalletDB& walletdb, const CSigmaEntry& sigma, bool isNew = false, bool isArchived = false);
     bool Archive(CMintMeta& meta);
     bool Archive(CLelantusMintMeta& meta);
-    bool HasPubcoinHash(const uint256& hashPubcoin, CWalletDB& walletdb) const;
+    bool HasSigmaPubcoinHash(const uint256& hashPubcoin, CWalletDB& walletdb) const;
+    bool HasLelantusPubcoinHash(const uint256& hashPubcoin, CWalletDB& walletdb) const;
     bool HasSerialHash(const uint256& hashSerial) const;
     bool HasLelantusSerialHash(const uint256& hashSerial) const;
     bool IsEmpty() const { return mapSerialHashes.empty(); }

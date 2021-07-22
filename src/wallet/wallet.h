@@ -1098,12 +1098,12 @@ public:
 
     std::set<CTxDestination> GetAccountAddresses(const std::string& strAccount) const;
 
-    isminetype IsMine(const CTxIn& txin) const;
+    isminetype IsMine(const CTxIn& txin, const CTransaction& tx) const;
     /**
      * Returns amount of debit if the input matches the
      * filter, otherwise returns 0
      */
-    CAmount GetDebit(const CTxIn& txin, const isminefilter& filter) const;
+    CAmount GetDebit(const CTxIn& txin, const CTransaction&tx, const isminefilter& filter) const;
     isminetype IsMine(const CTxOut& txout) const;
     CAmount GetCredit(const CTxOut& txout, const isminefilter& filter) const;
     bool IsChange(const uint256& tx, const CTxOut& txout) const;

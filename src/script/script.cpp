@@ -151,6 +151,7 @@ const char* GetOpName(opcodetype opcode)
     case OP_LELANTUSMINT       : return "OP_LELANTUSMINT";
     case OP_LELANTUSJMINT      : return "OP_LELANTUSJMINT";
     case OP_LELANTUSJOINSPLIT  : return "OP_LELANTUSJOINSPLIT";
+    case OP_LELANTUSJOINSPLITPAYLOAD: return "OP_LELANTUSJOINSPLITPAYLOAD";
 
     // Note:
     //  The template matching params OP_SMALLINTEGER/etc are defined in opcodetype enum
@@ -322,7 +323,7 @@ bool CScript::IsLelantusJMint() const {
 
 bool CScript::IsLelantusJoinSplit() const {
     return (this->size() > 0 &&
-            (*this)[0] == OP_LELANTUSJOINSPLIT);
+            ((*this)[0] == OP_LELANTUSJOINSPLIT || (*this)[0] == OP_LELANTUSJOINSPLITPAYLOAD));
 }
 
 bool CScript::IsMint() const {

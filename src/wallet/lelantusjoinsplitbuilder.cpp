@@ -294,6 +294,16 @@ CWalletTx LelantusJoinSplitBuilder::Build(
                 outModifier(out, *this);
             }
         }
+
+        // clear vExtraPayload to calculate metadata hash correctly
+        tx.vExtraPayload.clear();
+
+        // set correct type of transaction (this affects metadata hash)
+        if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) {
+            tx.nVersion = 3;
+            tx.nType = TRANSACTION_LELANTUS;
+        }
+
         // now every fields is populated then we can sign transaction
         uint256 sig = tx.GetHash();
 
@@ -544,8 +554,16 @@ void LelantusJoinSplitBuilder::CreateJoinSplit(
 
     CScript script;
 
-    script << OP_LELANTUSJOINSPLIT;
-    script.insert(script.end(), serialized.begin(), serialized.end());
+    if (chainActive.Height() >= Params().GetConsensus().nLelantusV3PayloadStartBlock) {
+        script << OP_LELANTUSJOINSPLITPAYLOAD;
+        tx.nVersion = 3;
+        tx.nType = TRANSACTION_LELANTUS;
+        tx.vExtraPayload.assign(serialized.begin(), serialized.end());
+    }
+    else {
+        script << OP_LELANTUSJOINSPLIT;
+        script.insert(script.end(), serialized.begin(), serialized.end());
+    }
 
     tx.vin[0].scriptSig = script;
 }

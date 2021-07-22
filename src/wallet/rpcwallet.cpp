@@ -2038,7 +2038,7 @@ UniValue gettransaction(const JSONRPCRequest& request)
     CAmount nNet = nCredit - nDebit;
     CAmount nFee = (wtx.IsFromMe(filter) ? wtx.tx->GetValueOut() - nDebit : 0);
     if (wtx.tx->vin[0].IsLelantusJoinSplit())
-        nFee = (0 - lelantus::ParseLelantusJoinSplit(wtx.tx->vin[0])->getFee());
+        nFee = (0 - lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee());
 
     entry.push_back(Pair("amount", ValueFromAmount(nNet - nFee)));
 
@@ -4066,7 +4066,7 @@ UniValue listlelantusjoinsplits(const JSONRPCRequest& request) {
         UniValue spends(UniValue::VARR);
         std::unique_ptr<lelantus::JoinSplit> joinsplit;
         try {
-            joinsplit = lelantus::ParseLelantusJoinSplit(pwtx->tx->vin[0]);
+            joinsplit = lelantus::ParseLelantusJoinSplit(*pwtx->tx);
         } catch (std::invalid_argument&) {
             continue;
         }

@@ -248,12 +248,15 @@ void CHDMintWallet::SetWalletTransactionBlock(CWalletTx &wtx, const CBlockIndex 
 void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::list<std::pair<uint256, MintPoolEntry>>> listMints)
 {
     CWalletDB walletdb(strWalletFile);
-    bool found = true;
+    bool foundSigma = true;
+    bool foundLela = true;
+
 
     std::set<uint256> setAddedTx;
     std::set<uint256> setChecked;
-    while (found) {
-        found = false;
+    while (foundSigma || foundLela) {
+        foundSigma = false;
+        foundLela = false;
         if (fGenerateMintPool)
             GenerateMintPool(walletdb);
         LogPrintf("%s: Mintpool size=%d\n", __func__, mintPool.size());
@@ -274,27 +277,18 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             int32_t& mintCount = std::get<2>(pMint.second);
 
             // halt processing if mint already in tracker
-            if (tracker.HasPubcoinHash(pMint.first, walletdb))
-                continue;
-
-            uint160 seedId = std::get<1>(pMint.second);
-            CDataStream ss(SER_GETHASH, 0);
-            ss << pMint.first;
-            ss << seedId;
-            uint256 mintTag = Hash(ss.begin(), ss.end());
-
             COutPoint outPoint;
-            if (sigma::GetOutPoint(outPoint, pMint.first)) {
+            if (!tracker.HasSigmaPubcoinHash(pMint.first, walletdb) && sigma::GetOutPoint(outPoint, pMint.first)) {
                 const uint256& txHash = outPoint.hash;
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
-                found = true;
+                foundSigma = true;
 
                 uint256 hashBlock;
                 CTransactionRef tx;
                 if (!GetTransaction(txHash, tx, Params().GetConsensus(), hashBlock, true)) {
                     LogPrintf("%s : failed to get transaction for mint %s!\n", __func__, pMint.first.GetHex());
-                    found = false;
+                    foundSigma = false;
                     continue;
                 }
 
@@ -325,7 +319,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
 
                 if (!fFoundMint || denomination == boost::none) {
                     LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx->GetHash().GetHex());
-                    found = false;
+                    foundSigma = false;
                     break;
                 }
 
@@ -354,17 +348,28 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
                     UpdateCountDB(walletdb);
                     LogPrint("zero", "%s: updated count to %d\n", __func__, nCountNextUse);
                 }
-            } else if (!pwalletMain->IsLocked() && lelantus::GetOutPointFromMintTag(outPoint, mintTag)) {
+            }
+
+            if (tracker.HasLelantusPubcoinHash(pMint.first, walletdb))
+                continue;
+
+            uint160 seedId = std::get<1>(pMint.second);
+            CDataStream ss(SER_GETHASH, 0);
+            ss << pMint.first;
+            ss << seedId;
+            uint256 mintTag = Hash(ss.begin(), ss.end());
+
+            if (!pwalletMain->IsLocked() && lelantus::GetOutPointFromMintTag(outPoint, mintTag)) {
                 const uint256& txHash = outPoint.hash;
                 //this mint has already occurred on the chain, increment counter's state to reflect this
                 LogPrintf("%s : Found wallet coin mint=%s count=%d tx=%s\n", __func__, pMint.first.GetHex(), mintCount, txHash.GetHex());
-                found = true;
+                foundLela = true;
 
                 uint256 hashBlock;
                 CTransactionRef tx;
                 if (!GetTransaction(txHash, tx, Params().GetConsensus(), hashBlock, true)) {
                     LogPrintf("%s : failed to get transaction for mint %s!\n", __func__, pMint.first.GetHex());
-                    found = false;
+                    foundLela = false;
                     continue;
                 }
 
@@ -399,7 +404,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
 
                 if (!fFoundMint) {
                     LogPrintf("%s : failed to get mint %s from tx %s!\n", __func__, pMint.first.GetHex(), tx->GetHash().GetHex());
-                    found = false;
+                    foundLela = false;
                     break;
                 }
 
@@ -431,7 +436,7 @@ void CHDMintWallet::SyncWithChain(bool fGenerateMintPool, boost::optional<std::l
             }
         }
         // Clear listMints to allow it to be repopulated by the mintPool on the next iteration
-        if(found)
+        if(foundSigma || foundLela)
             listMints = boost::none;
     }
 }

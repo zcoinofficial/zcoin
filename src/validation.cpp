@@ -702,13 +702,16 @@ bool ContextualCheckTransaction(const CTransaction& tx, CValidationState &state,
                 tx.nType != TRANSACTION_PROVIDER_UPDATE_REVOKE &&
                 tx.nType != TRANSACTION_COINBASE &&
                 tx.nType != TRANSACTION_QUORUM_COMMITMENT &&
-                tx.nType != TRANSACTION_SPORK) {
+                tx.nType != TRANSACTION_SPORK &&
+                tx.nType != TRANSACTION_LELANTUS) {
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
             }
             if (tx.IsCoinBase() && tx.nType != TRANSACTION_COINBASE)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-cb-type");
             if (tx.nType == TRANSACTION_SPORK &&
                     !(nHeight >= consensusParams.nEvoSporkStartBlock && nHeight < consensusParams.nEvoSporkStopBlock))
+                return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
+            if (tx.nType == TRANSACTION_LELANTUS && nHeight < consensusParams.nLelantusV3PayloadStartBlock)
                 return state.DoS(100, false, REJECT_INVALID, "bad-txns-type");
         }
         else if (tx.nType != TRANSACTION_NORMAL) {
@@ -820,22 +823,45 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
             if (tx.vin.size() > 1) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
             }
-            std::vector<Scalar> serials;
+            std::unique_ptr<lelantus::JoinSplit> joinsplit;
+
             try {
-                serials = lelantus::GetLelantusJoinSplitSerialNumbers(tx, tx.vin[0]);
+                joinsplit = lelantus::ParseLelantusJoinSplit(tx);
             }
             catch (CBadTxIn&) {
                 return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
             }
-            for (const auto& serial : serials) {
-                if (!serial.isMember() || serial.isZero())
+
+            const std::vector<uint32_t> &ids = joinsplit->getCoinGroupIds();
+            const std::vector<Scalar>& serials = joinsplit->getCoinSerialNumbers();
+
+            if (serials.size() != ids.size())
+                return state.Invalid(false, REJECT_CONFLICT, "txn-invalid-lelantus-joinsplit");
+
+            for (size_t i = 0; i < serials.size(); ++i) {
+                if (!serials[i].isMember() || serials[i].isZero())
                     return state.Invalid(false, REJECT_INVALID, "txn-invalid-lelantus-joinsplit-serial");
-                if (lelantusState->IsUsedCoinSerial(serial) || pool.lelantusState.HasCoinSerial(serial) ||
-                    !sigmaState->CanAddSpendToMempool(serial)) {
-                    LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n", serial.tostring());
-                    return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+
+                int coinGroupId = ids[i] % (CENT / 1000);
+                int64_t intDenom = (ids[i] - coinGroupId);
+                intDenom *= 1000;
+                sigma::CoinDenomination denomination;
+
+                if (chainActive.Height() < consensus.nLelantusV3PayloadStartBlock || (joinsplit->isSigmaToLelantus() && sigma::IntegerToDenomination(intDenom, denomination))) {
+                    if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i]) ||
+                        !sigmaState->CanAddSpendToMempool(serials[i])) {
+                        LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
+                                  serials[i].tostring());
+                        return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                    }
+                } else {
+                    if (lelantusState->IsUsedCoinSerial(serials[i]) || pool.lelantusState.HasCoinSerial(serials[i])) {
+                        LogPrintf("AcceptToMemoryPool(): lelantus serial number %s has been used\n",
+                                  serials[i].tostring());
+                        return state.Invalid(false, REJECT_CONFLICT, "txn-mempool-conflict");
+                    }
                 }
-                lelantusSpendSerials.push_back(serial);
+                lelantusSpendSerials.push_back(serials[i]);
             }
         }
 
@@ -1037,7 +1063,7 @@ bool AcceptToMemoryPoolWorker(CTxMemPool& pool, CValidationState& state, const C
                 nFees = nValueIn - nValueOut;
             } else {
                 try {
-                    nFees = lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+                    nFees = lelantus::ParseLelantusJoinSplit(tx)->getFee();
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -1922,7 +1948,7 @@ bool CheckTxInputs(const CTransaction& tx, CValidationState& state, const CCoins
             nTxFee = nValueIn - tx.GetValueOut();
         } else {
             try {
-                nTxFee = lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+                nTxFee = lelantus::ParseLelantusJoinSplit(tx)->getFee();
             }
             catch (CBadTxIn&) {
                 return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -2351,7 +2377,7 @@ static DisconnectResult DisconnectBlock(const CBlock& block, CValidationState& s
         if(tx.IsSigmaSpend())
             nFees += sigma::GetSigmaSpendInput(tx) - tx.GetValueOut();
         else if (tx.IsLelantusJoinSplit()) {
-            nFees += lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+            nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
         }
 
         dbIndexHelper.DisconnectTransactionInputs(tx, pindex->nHeight, i, view);
@@ -2710,7 +2736,7 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
 
             if(tx.IsLelantusJoinSplit()) {
                 try {
-                    nFees += lelantus::ParseLelantusJoinSplit(tx.vin[0])->getFee();
+                    nFees += lelantus::ParseLelantusJoinSplit(tx)->getFee();
                 }
                 catch (CBadTxIn&) {
                     return state.DoS(0, false, REJECT_INVALID, "unable to parse joinsplit");
@@ -3195,11 +3221,10 @@ bool static DisconnectTip(CValidationState& state, const CChainParams& chainpara
             false, false, block.sigmaTxInfo.get(), block.lelantusTxInfo.get());
         if(GetBoolArg("-batching", true)) {
             if (tx->IsLelantusJoinSplit()) {
-                const CTxIn &txin = tx->vin[0];
                 std::unique_ptr<lelantus::JoinSplit> joinsplit;
 
                 try {
-                    joinsplit = lelantus::ParseLelantusJoinSplit(txin);
+                    joinsplit = lelantus::ParseLelantusJoinSplit(*tx);
                 }
                 catch (CBadTxIn &) {
                     continue;

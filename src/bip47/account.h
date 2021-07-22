@@ -126,7 +126,7 @@ public:
 
     void acceptPcode(CPaymentCode const & theirPcode);
     bool acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, COutPoint const & outpoint, CPubKey const & outpoinPubkey);
-    bool acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, CTxIn const & in);
+    bool acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, CTransaction const & tx);
     CPaymentCode const & lastPcode() const;
     bool findTheirPcode(CPaymentCode const & pcode) const;
 

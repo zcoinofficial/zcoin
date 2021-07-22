@@ -332,6 +332,9 @@ struct Params {
     /** block to start reorg depth enforcement */
     int nMaxReorgDepthEnforcementBlock;
 
+    /** move lelantus data to v3 payload since this block */
+    int nLelantusV3PayloadStartBlock;
+
     /** whitelisted transactions */
     std::set<uint256> txidWhitelist;
 

@@ -224,6 +224,7 @@ bool CBloomFilter::CheckSpecialTransactionMatchesAndUpdate(const CTransaction &t
     case(TRANSACTION_COINBASE):
     case(TRANSACTION_QUORUM_COMMITMENT):
     case (TRANSACTION_SPORK):
+    case (TRANSACTION_LELANTUS):
         // No aditional checks for this transaction types
         return false;
     }

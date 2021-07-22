@@ -54,7 +54,7 @@ bool CTxIn::IsSigmaSpend() const
 
 bool CTxIn::IsLelantusJoinSplit() const
 {
-    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_LELANTUSJOINSPLIT) );
+    return (prevout.IsNull() && scriptSig.size() > 0 && (scriptSig[0] == OP_LELANTUSJOINSPLIT || scriptSig[0] == OP_LELANTUSJOINSPLITPAYLOAD) );
 }
 
 bool CTxIn::IsZerocoinRemint() const
@@ -170,6 +170,9 @@ bool CTransaction::IsSigmaSpend() const
 
 bool CTransaction::IsLelantusJoinSplit() const
 {
+    if (nVersion >= 3 && nType == TRANSACTION_LELANTUS)
+        return true;
+
     for (const CTxIn &txin: vin) {
         if (txin.IsLelantusJoinSplit())
             return true;

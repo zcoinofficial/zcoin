@@ -48,14 +48,14 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
 
     bool isAllSigmaSpendFromMe = false;
     for (const auto& vin : wtx.tx->vin) {
-        isAllSigmaSpendFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsSigmaSpend();
+        isAllSigmaSpendFromMe = (wallet->IsMine(vin, *wtx.tx) & ISMINE_SPENDABLE) && vin.IsSigmaSpend();
         if (!isAllSigmaSpendFromMe)
             break;
     }
 
     bool isAllJoinSplitFromMe = false;
     for (const auto& vin : wtx.tx->vin) {
-        isAllJoinSplitFromMe = (wallet->IsMine(vin) & ISMINE_SPENDABLE) && vin.IsLelantusJoinSplit();
+        isAllJoinSplitFromMe = (wallet->IsMine(vin, *wtx.tx) & ISMINE_SPENDABLE) && vin.IsLelantusJoinSplit();
         if (!isAllJoinSplitFromMe)
             break;
     }
@@ -63,7 +63,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
     if (wtx.tx->IsZerocoinSpend() || isAllSigmaSpendFromMe || isAllJoinSplitFromMe) {
         CAmount nTxFee = nDebit - wtx.tx->GetValueOut();
         if (isAllJoinSplitFromMe && wtx.tx->vin.size() > 0) {
-            nTxFee = lelantus::ParseLelantusJoinSplit(wtx.tx->vin[0])->getFee();
+            nTxFee = lelantus::ParseLelantusJoinSplit(*wtx.tx)->getFee();
         }
 
         bool first = true;
@@ -201,7 +201,7 @@ QList<TransactionRecord> TransactionRecord::decomposeTransaction(const CWallet *
         isminetype fAllFromMe = ISMINE_SPENDABLE;
         BOOST_FOREACH(const CTxIn& txin, wtx.tx->vin)
         {
-            isminetype mine = wallet->IsMine(txin);
+            isminetype mine = wallet->IsMine(txin, *wtx.tx);
             if(mine & ISMINE_WATCH_ONLY) involvesWatchAddress = true;
             if(fAllFromMe > mine) fAllFromMe = mine;
         }

@@ -1163,7 +1163,7 @@ void WalletModel::listCoins(std::map<QString, std::vector<COutput> >& mapCoins, 
     {
         COutput cout = out;
 
-        while (wallet->IsChange(cout.tx->GetHash(), cout.tx->tx->vout[cout.i]) && cout.tx->tx->vin.size() > 0 && wallet->IsMine(cout.tx->tx->vin[0]))
+        while (wallet->IsChange(cout.tx->GetHash(), cout.tx->tx->vout[cout.i]) && cout.tx->tx->vin.size() > 0 && wallet->IsMine(cout.tx->tx->vin[0], *cout.tx->tx))
         {
             if (!wallet->mapWallet.count(cout.tx->tx->vin[0].prevout.hash)) break;
             cout = COutput(&wallet->mapWallet[cout.tx->tx->vin[0].prevout.hash], cout.tx->tx->vin[0].prevout.n, 0, true, true);

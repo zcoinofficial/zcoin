@@ -121,7 +121,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
         } else if (txin.IsLelantusJoinSplit()) {
             in.push_back("joinsplit");
             fillStdFields(in, txin);
-            std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(txin);
+            std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(tx);
             in.push_back(Pair("nFees", ValueFromAmount(jsplit->getFee())));
             UniValue serials(UniValue::VARR);
             for (Scalar const & serial : jsplit->getCoinSerialNumbers()) {
@@ -222,6 +222,9 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, UniValue& entry)
                 break;
             case TRANSACTION_SPORK:
                 ExtraPayloadToJson<CSporkTx>(tx, "sporkTx", entry);
+                break;
+            case TRANSACTION_LELANTUS:
+                entry.push_back(Pair("lelantusData", HexStr(tx.vExtraPayload)));
                 break;
             default:
                 break;

@@ -249,9 +249,9 @@ bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & ma
     return true;
 }
 
-bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, CTxIn const & in)
+bool CAccountReceiver::acceptMaskedPayload(std::vector<unsigned char> const & maskedPayload, CTransaction const & tx)
 {
-    std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(in);
+    std::unique_ptr<lelantus::JoinSplit> jsplit = lelantus::ParseLelantusJoinSplit(tx);
     if (!jsplit)
         return false;
     std::unique_ptr<CPaymentCode> pcode;
