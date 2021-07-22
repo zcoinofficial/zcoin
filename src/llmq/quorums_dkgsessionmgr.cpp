@@ -39,7 +39,7 @@ void CDKGSessionManager::StartMessageHandlerPool()
     }
 
     messageHandlerPool.resize(2);
-    RenameThreadPool(messageHandlerPool, "dash-q-msg");
+    RenameThreadPool(messageHandlerPool, "firo-q-msg");
 }
 
 void CDKGSessionManager::StopMessageHandlerPool()
