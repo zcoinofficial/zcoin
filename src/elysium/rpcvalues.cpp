@@ -70,33 +70,6 @@ int64_t ParseAmount(const UniValue& value, int propertyType)
     return ParseAmount(value, fDivisible);
 }
 
-uint8_t ParseDExPaymentWindow(const UniValue& value)
-{
-    int64_t blocks = value.get_int64();
-    if (blocks < 1 || 255 < blocks) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Payment window must be within 1-255 blocks");
-    }
-    return static_cast<uint8_t>(blocks);
-}
-
-int64_t ParseDExFee(const UniValue& value)
-{
-    int64_t fee = StrToInt64(value.get_str(), true);  // BTC is divisible
-    if (fee < 0) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Mininmum accept fee must be positive");
-    }
-    return fee;
-}
-
-uint8_t ParseDExAction(const UniValue& value)
-{
-    int64_t action = value.get_int64();
-    if (action <= 0 || 3 < action) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid action (1 = new, 2 = update, 3 = cancel only)");
-    }
-    return static_cast<uint8_t>(action);
-}
-
 uint8_t ParseEcosystem(const UniValue& value)
 {
     int64_t ecosystem = value.get_int64();
@@ -131,42 +104,6 @@ std::string ParseText(const UniValue& value)
         throw JSONRPCError(RPC_INVALID_PARAMETER, "Text must not be longer than 255 characters");
     }
     return text;
-}
-
-int64_t ParseDeadline(const UniValue& value)
-{
-    int64_t deadline = value.get_int64();
-    if (deadline < 0) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Deadline must be positive");
-    }
-    return deadline;
-}
-
-uint8_t ParseEarlyBirdBonus(const UniValue& value)
-{
-    int64_t percentage = value.get_int64();
-    if (percentage < 0 || 255 < percentage) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Early bird bonus must be in the range of 0-255 percent per week");
-    }
-    return static_cast<uint8_t>(percentage);
-}
-
-uint8_t ParseIssuerBonus(const UniValue& value)
-{
-    int64_t percentage = value.get_int64();
-    if (percentage < 0 || 255 < percentage) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Bonus for issuer must be in the range of 0-255 percent");
-    }
-    return static_cast<uint8_t>(percentage);
-}
-
-uint8_t ParseMetaDExAction(const UniValue& value)
-{
-    int64_t action = value.get_int64();
-    if (action <= 0 || 4 < action) {
-        throw JSONRPCError(RPC_TYPE_ERROR, "Invalid action (1, 2, 3, 4 only)");
-    }
-    return static_cast<uint8_t>(action);
 }
 
 CTransaction ParseTransaction(const UniValue& value)
@@ -236,17 +173,3 @@ std::vector<PrevTxsEntry> ParsePrevTxs(const UniValue& value)
     return prevTxsParsed;
 }
 
-namespace elysium {
-
-SigmaDenomination ParseSigmaDenomination(const UniValue& value)
-{
-    auto v = value.get_int();
-
-    if (v < 0 || static_cast<unsigned>(v) >= MAX_DENOMINATIONS) {
-        throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid denomination");
-    }
-
-    return v;
-}
-
-}

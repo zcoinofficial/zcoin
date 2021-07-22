@@ -112,10 +112,7 @@ int WalletCacheUpdate()
         uint32_t propertyId;
         while (0 != (propertyId = (tally.next()))) {
             if (tally.getMoney(propertyId, BALANCE) != cacheTally.getMoney(propertyId, BALANCE) ||
-                    tally.getMoney(propertyId, PENDING) != cacheTally.getMoney(propertyId, PENDING) ||
-                    tally.getMoney(propertyId, SELLOFFER_RESERVE) != cacheTally.getMoney(propertyId, SELLOFFER_RESERVE) ||
-                    tally.getMoney(propertyId, ACCEPT_RESERVE) != cacheTally.getMoney(propertyId, ACCEPT_RESERVE) ||
-                    tally.getMoney(propertyId, METADEX_RESERVE) != cacheTally.getMoney(propertyId, METADEX_RESERVE)) { // cache miss, balance
+                    tally.getMoney(propertyId, PENDING) != cacheTally.getMoney(propertyId, PENDING)) { // cache miss, balance
                 ++numChanges;
                 changedAddresses.insert(address);
                 walletBalancesCache.erase(search_it);

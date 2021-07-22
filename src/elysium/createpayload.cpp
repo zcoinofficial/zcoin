@@ -63,48 +63,6 @@ std::vector<unsigned char> CreatePayload_SendAll(uint8_t ecosystem)
     return payload;
 }
 
-std::vector<unsigned char> CreatePayload_DExSell(uint32_t propertyId, uint64_t amountForSale, uint64_t amountDesired, uint8_t timeLimit, uint64_t minFee, uint8_t subAction)
-{
-    std::vector<unsigned char> payload;
-    uint16_t messageType = ELYSIUM_TYPE_TRADE_OFFER;
-    uint16_t messageVer = 1;
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder32(propertyId);
-    elysium::swapByteOrder64(amountForSale);
-    elysium::swapByteOrder64(amountDesired);
-    elysium::swapByteOrder64(minFee);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, propertyId);
-    PUSH_BACK_BYTES(payload, amountForSale);
-    PUSH_BACK_BYTES(payload, amountDesired);
-    PUSH_BACK_BYTES(payload, timeLimit);
-    PUSH_BACK_BYTES(payload, minFee);
-    PUSH_BACK_BYTES(payload, subAction);
-
-    return payload;
-}
-
-std::vector<unsigned char> CreatePayload_DExAccept(uint32_t propertyId, uint64_t amount)
-{
-    std::vector<unsigned char> payload;
-    uint16_t messageType = ELYSIUM_TYPE_ACCEPT_OFFER_BTC;
-    uint16_t messageVer = 0;
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder32(propertyId);
-    elysium::swapByteOrder64(amount);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, propertyId);
-    PUSH_BACK_BYTES(payload, amount);
-
-    return payload;
-}
-
 std::vector<unsigned char> CreatePayload_SendToOwners(uint32_t propertyId, uint64_t amount, uint32_t distributionProperty)
 {
     bool v0 = (propertyId == distributionProperty) ? true : false;
@@ -132,11 +90,11 @@ std::vector<unsigned char> CreatePayload_SendToOwners(uint32_t propertyId, uint6
 
 std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
                                                        std::string subcategory, std::string name, std::string url, std::string data, uint64_t amount,
-                                                       boost::optional<SigmaStatus> sigmaStatus)
+                                                       boost::optional<elysium::LelantusStatus> lelantusStatus)
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_FIXED;
-    uint16_t messageVer = sigmaStatus ? 1 : 0;
+    uint16_t messageVer = lelantusStatus ? 2 : 0;
 
     elysium::swapByteOrder16(messageVer);
     elysium::swapByteOrder16(messageType);
@@ -167,64 +125,20 @@ std::vector<unsigned char> CreatePayload_IssuanceFixed(uint8_t ecosystem, uint16
     payload.push_back('\0');
     PUSH_BACK_BYTES(payload, amount);
 
-    if (sigmaStatus) {
-        PUSH_BACK_BYTES(payload, sigmaStatus.get());
+    if (lelantusStatus) {
+        PUSH_BACK_BYTES(payload, lelantusStatus.get());
     }
-
-    return payload;
-}
-
-std::vector<unsigned char> CreatePayload_IssuanceVariable(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
-                                                          std::string subcategory, std::string name, std::string url, std::string data, uint32_t propertyIdDesired,
-                                                          uint64_t amountPerUnit, uint64_t deadline, uint8_t earlyBonus, uint8_t issuerPercentage)
-{
-    std::vector<unsigned char> payload;
-    uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE;
-    uint16_t messageVer = 0;
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder16(propertyType);
-    elysium::swapByteOrder32(previousPropertyId);
-    elysium::swapByteOrder32(propertyIdDesired);
-    elysium::swapByteOrder64(amountPerUnit);
-    elysium::swapByteOrder64(deadline);
-    if (category.size() > 255) category = category.substr(0,255);
-    if (subcategory.size() > 255) subcategory = subcategory.substr(0,255);
-    if (name.size() > 255) name = name.substr(0,255);
-    if (url.size() > 255) url = url.substr(0,255);
-    if (data.size() > 255) data = data.substr(0,255);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, ecosystem);
-    PUSH_BACK_BYTES(payload, propertyType);
-    PUSH_BACK_BYTES(payload, previousPropertyId);
-    payload.insert(payload.end(), category.begin(), category.end());
-    payload.push_back('\0');
-    payload.insert(payload.end(), subcategory.begin(), subcategory.end());
-    payload.push_back('\0');
-    payload.insert(payload.end(), name.begin(), name.end());
-    payload.push_back('\0');
-    payload.insert(payload.end(), url.begin(), url.end());
-    payload.push_back('\0');
-    payload.insert(payload.end(), data.begin(), data.end());
-    payload.push_back('\0');
-    PUSH_BACK_BYTES(payload, propertyIdDesired);
-    PUSH_BACK_BYTES(payload, amountPerUnit);
-    PUSH_BACK_BYTES(payload, deadline);
-    PUSH_BACK_BYTES(payload, earlyBonus);
-    PUSH_BACK_BYTES(payload, issuerPercentage);
 
     return payload;
 }
 
 std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint16_t propertyType, uint32_t previousPropertyId, std::string category,
                                                        std::string subcategory, std::string name, std::string url, std::string data,
-                                                       boost::optional<SigmaStatus> sigmaStatus)
+                                                       boost::optional<elysium::LelantusStatus> lelantusStatus)
 {
     std::vector<unsigned char> payload;
     uint16_t messageType = ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL;
-    uint16_t messageVer = sigmaStatus ? 1 : 0;
+    uint16_t messageVer = lelantusStatus ? 2 : 0;
 
     elysium::swapByteOrder16(messageVer);
     elysium::swapByteOrder16(messageType);
@@ -253,48 +167,32 @@ std::vector<unsigned char> CreatePayload_IssuanceManaged(uint8_t ecosystem, uint
     payload.insert(payload.end(), data.begin(), data.end());
     payload.push_back('\0');
 
-    if (sigmaStatus) {
-        PUSH_BACK_BYTES(payload, sigmaStatus.get());
+    if (lelantusStatus) {
+        PUSH_BACK_BYTES(payload, lelantusStatus.get());
     }
-
-    return payload;
-}
-
-std::vector<unsigned char> CreatePayload_CloseCrowdsale(uint32_t propertyId)
-{
-    std::vector<unsigned char> payload;
-    uint16_t messageType = ELYSIUM_TYPE_CLOSE_CROWDSALE;
-    uint16_t messageVer = 0;
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder32(propertyId);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, propertyId);
 
     return payload;
 }
 
 std::vector<unsigned char> CreatePayload_Grant(uint32_t propertyId, uint64_t amount, std::string memo)
 {
-    std::vector<unsigned char> payload;
-    uint16_t messageType = ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS;
-    uint16_t messageVer = 0;
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder32(propertyId);
-    elysium::swapByteOrder64(amount);
-    if (memo.size() > 255) memo = memo.substr(0,255);
+	std::vector<unsigned char> payload;
+	uint16_t messageType = ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS;
+	uint16_t messageVer = 0;
+	elysium::swapByteOrder16(messageType);
+	elysium::swapByteOrder16(messageVer);
+	elysium::swapByteOrder32(propertyId);
+	elysium::swapByteOrder64(amount);
+	if (memo.size() > 255) memo = memo.substr(0, 255);
 
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, propertyId);
-    PUSH_BACK_BYTES(payload, amount);
-    payload.insert(payload.end(), memo.begin(), memo.end());
-    payload.push_back('\0');
+	PUSH_BACK_BYTES(payload, messageVer);
+	PUSH_BACK_BYTES(payload, messageType);
+	PUSH_BACK_BYTES(payload, propertyId);
+	PUSH_BACK_BYTES(payload, amount);
+	payload.insert(payload.end(), memo.begin(), memo.end());
+	payload.push_back('\0');
 
-    return payload;
+	return payload;
 }
 
 
@@ -407,91 +305,6 @@ std::vector<unsigned char> CreatePayload_UnfreezeTokens(uint32_t propertyId, uin
     return payload;
 }
 
-std::vector<unsigned char> CreatePayload_MetaDExTrade(uint32_t propertyIdForSale, uint64_t amountForSale, uint32_t propertyIdDesired, uint64_t amountDesired)
-{
-    std::vector<unsigned char> payload;
-
-    uint16_t messageType = ELYSIUM_TYPE_METADEX_TRADE;
-    uint16_t messageVer = 0;
-
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder32(propertyIdForSale);
-    elysium::swapByteOrder64(amountForSale);
-    elysium::swapByteOrder32(propertyIdDesired);
-    elysium::swapByteOrder64(amountDesired);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, propertyIdForSale);
-    PUSH_BACK_BYTES(payload, amountForSale);
-    PUSH_BACK_BYTES(payload, propertyIdDesired);
-    PUSH_BACK_BYTES(payload, amountDesired);
-
-    return payload;
-}
-
-std::vector<unsigned char> CreatePayload_MetaDExCancelPrice(uint32_t propertyIdForSale, uint64_t amountForSale, uint32_t propertyIdDesired, uint64_t amountDesired)
-{
-    std::vector<unsigned char> payload;
-
-    uint16_t messageType = ELYSIUM_TYPE_METADEX_CANCEL_PRICE;
-    uint16_t messageVer = 0;
-
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder32(propertyIdForSale);
-    elysium::swapByteOrder64(amountForSale);
-    elysium::swapByteOrder32(propertyIdDesired);
-    elysium::swapByteOrder64(amountDesired);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, propertyIdForSale);
-    PUSH_BACK_BYTES(payload, amountForSale);
-    PUSH_BACK_BYTES(payload, propertyIdDesired);
-    PUSH_BACK_BYTES(payload, amountDesired);
-
-    return payload;
-}
-
-std::vector<unsigned char> CreatePayload_MetaDExCancelPair(uint32_t propertyIdForSale, uint32_t propertyIdDesired)
-{
-    std::vector<unsigned char> payload;
-
-    uint16_t messageType = ELYSIUM_TYPE_METADEX_CANCEL_PAIR;
-    uint16_t messageVer = 0;
-
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder32(propertyIdForSale);
-    elysium::swapByteOrder32(propertyIdDesired);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, propertyIdForSale);
-    PUSH_BACK_BYTES(payload, propertyIdDesired);
-
-    return payload;
-}
-
-std::vector<unsigned char> CreatePayload_MetaDExCancelEcosystem(uint8_t ecosystem)
-{
-    std::vector<unsigned char> payload;
-
-    uint16_t messageType = ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM;
-    uint16_t messageVer = 0;
-
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder16(messageType);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, ecosystem);
-
-    return payload;
-}
-
 std::vector<unsigned char> CreatePayload_DeactivateFeature(uint16_t featureId)
 {
     std::vector<unsigned char> payload;
@@ -553,121 +366,92 @@ std::vector<unsigned char> CreatePayload_ElysiumAlert(uint16_t alertType, uint32
     return payload;
 }
 
-std::vector<unsigned char> CreatePayload_CreateDenomination(uint32_t propertyId, uint64_t value)
+std::vector<unsigned char> CreatePayload_CreateLelantusMint(
+    uint32_t propertyId, lelantus::PublicCoin const &pubcoin, elysium::MintEntryId const &id,
+    uint64_t value,  std::vector<unsigned char> const &schnorrProof)
 {
-    std::vector<unsigned char> payload;
+    if (schnorrProof.size() != 98) {
+        throw std::invalid_argument("Schnorr proof size is invalid");
+    }
 
-    uint16_t messageType = ELYSIUM_TYPE_CREATE_DENOMINATION;
-    uint16_t messageVer = 0;
-
-    elysium::swapByteOrder16(messageVer);
-    elysium::swapByteOrder16(messageType);
-    elysium::swapByteOrder32(propertyId);
-    elysium::swapByteOrder64(value);
-
-    PUSH_BACK_BYTES(payload, messageVer);
-    PUSH_BACK_BYTES(payload, messageType);
-    PUSH_BACK_BYTES(payload, propertyId);
-    PUSH_BACK_BYTES(payload, value);
-
-    return payload;
-}
-
-std::vector<unsigned char> CreatePayload_SimpleMint(
-    uint32_t propertyId, const std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>>& mints)
-{
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
-    uint16_t messageType = ELYSIUM_TYPE_SIMPLE_MINT;
+    uint16_t messageType = ELYSIUM_TYPE_LELANTUS_MINT;
     elysium::swapByteOrder(messageVer);
     elysium::swapByteOrder(messageType);
     elysium::swapByteOrder(propertyId);
+    elysium::swapByteOrder(value);
 
+    // Meta data
     PUSH_BACK_BYTES(payload, messageVer);
     PUSH_BACK_BYTES(payload, messageType);
     PUSH_BACK_BYTES(payload, propertyId);
 
-    if (mints.size() > ELYSIUM_MAX_SIMPLE_MINTS) {
-        throw std::invalid_argument("amount of mints exceeded limit");
-    }
-
-    if (mints.size() == 0) {
-        throw std::invalid_argument("no mints provided");
-    }
-
-    auto mintAmount = static_cast<uint8_t>(mints.size());
-    PUSH_BACK_BYTES(payload, mintAmount);
-
+    // Mint data
     CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
-    for (auto const &mint : mints) {
-        serialized << mint;
-    }
+    serialized << pubcoin;
+    serialized << id;
     payload.insert(payload.end(), serialized.begin(), serialized.end());
+
+    // Additional mint data
+    PUSH_BACK_BYTES(payload, value);
+    payload.insert(payload.end(), schnorrProof.begin(), schnorrProof.end());
 
     return payload;
 }
 
-// V0
-std::vector<unsigned char> CreatePayload_SimpleSpend(
-    uint32_t propertyId, uint8_t denomination, uint32_t group,
-    uint16_t groupSize, elysium::SigmaProof const &proof,
-    secp_primitives::Scalar const &serial)
+std::vector<unsigned char> CreatePayload_CreateLelantusJoinSplit(
+    uint32_t propertyId,
+    uint64_t amount,
+    lelantus::JoinSplit const &joinSplit,
+    boost::optional<elysium::JoinSplitMint> const &mint)
 {
     std::vector<unsigned char> payload;
     uint16_t messageVer = 0;
-    uint16_t messageType = ELYSIUM_TYPE_SIMPLE_SPEND;
+    uint16_t messageType = ELYSIUM_TYPE_LELANTUS_JOINSPLIT;
     elysium::swapByteOrder(messageVer);
     elysium::swapByteOrder(messageType);
     elysium::swapByteOrder(propertyId);
-    elysium::swapByteOrder(group);
-    elysium::swapByteOrder(groupSize);
 
+    // Meta data
     PUSH_BACK_BYTES(payload, messageVer);
     PUSH_BACK_BYTES(payload, messageType);
     PUSH_BACK_BYTES(payload, propertyId);
-    PUSH_BACK_BYTES(payload, denomination);
-    PUSH_BACK_BYTES(payload, group);
-    PUSH_BACK_BYTES(payload, groupSize);
 
-    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-    serialized << serial;
-    serialized << proof;
-    payload.insert(payload.end(), serialized.begin(), serialized.end());
+    // amount
+    elysium::swapByteOrder(amount);
+    PUSH_BACK_BYTES(payload, amount);
+
+    // Mint data
+    {
+        CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
+        serialized << joinSplit;
+        payload.insert(payload.end(), serialized.begin(), serialized.end());
+    }
+
+    // change
+    if (mint.get_ptr() != nullptr) {
+        CDataStream serialized(SER_NETWORK, CLIENT_VERSION);
+        serialized << mint.get();
+        payload.insert(payload.end(), serialized.begin(), serialized.end());
+    }
 
     return payload;
 }
 
-// V1
-std::vector<unsigned char> CreatePayload_SimpleSpend(
-    uint32_t propertyId, uint8_t denomination, uint32_t group,
-    uint16_t groupSize, elysium::SigmaProof const &proof,
-    ECDSASignature const &signature, CPubKey const &pubkey)
+std::vector<unsigned char> CreatePayload_ChangeLelantusStatus(uint32_t propertyId, elysium::LelantusStatus status)
 {
-    if (pubkey.size() != CPubKey::COMPRESSED_PUBLIC_KEY_SIZE) {
-        throw std::invalid_argument("Publickey size is invalid");
-    }
-
     std::vector<unsigned char> payload;
-    uint16_t messageVer = 1;
-    uint16_t messageType = ELYSIUM_TYPE_SIMPLE_SPEND;
-    elysium::swapByteOrder(messageVer);
-    elysium::swapByteOrder(messageType);
-    elysium::swapByteOrder(propertyId);
-    elysium::swapByteOrder(group);
-    elysium::swapByteOrder(groupSize);
+    uint16_t messageType = ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS;
+    uint16_t messageVer = 0;
+    elysium::swapByteOrder16(messageType);
+    elysium::swapByteOrder16(messageVer);
+    elysium::swapByteOrder32(propertyId);
 
     PUSH_BACK_BYTES(payload, messageVer);
     PUSH_BACK_BYTES(payload, messageType);
     PUSH_BACK_BYTES(payload, propertyId);
-    PUSH_BACK_BYTES(payload, denomination);
-    PUSH_BACK_BYTES(payload, group);
-    PUSH_BACK_BYTES(payload, groupSize);
-
-    CDataStream serialized(SER_NETWORK, PROTOCOL_VERSION);
-    serialized.write(reinterpret_cast<const char*>(pubkey.begin()), pubkey.size());
-    serialized << proof;
-    serialized << signature;
-    payload.insert(payload.end(), serialized.begin(), serialized.end());
+    PUSH_BACK_BYTES(payload, status);
 
     return payload;
 }

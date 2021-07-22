@@ -38,7 +38,8 @@ public:
             const LelantusProof& proof,
             const SchnorrProof& qkSchnorrProof,
             Scalar& x,
-            bool fSkipVerification = false);
+            bool fSkipVerification = false,
+            boost::optional<int64_t> nMaxValueLelantusSpendPerTransaction = boost::none);
 
 private:
     bool verify_sigma(

@@ -4,10 +4,7 @@
 
 #include "elysium/activation.h"
 #include "elysium/convert.h"
-#include "elysium/dex.h"
-#include "elysium/fees.h"
 #include "elysium/log.h"
-#include "elysium/mdex.h"
 #include "elysium/notifications.h"
 #include "elysium/elysium.h"
 #include "elysium/rules.h"
@@ -49,16 +46,8 @@ std::string elysium::strTransactionType(uint16_t txType)
         case ELYSIUM_TYPE_SAVINGS_COMPROMISED: return "Savings COMPROMISED";
         case ELYSIUM_TYPE_RATELIMITED_MARK: return "Rate-Limiting";
         case ELYSIUM_TYPE_AUTOMATIC_DISPENSARY: return "Automatic Dispensary";
-        case ELYSIUM_TYPE_TRADE_OFFER: return "DEx Sell Offer";
-        case ELYSIUM_TYPE_METADEX_TRADE: return "MetaDEx trade";
-        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE: return "MetaDEx cancel-price";
-        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR: return "MetaDEx cancel-pair";
-        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM: return "MetaDEx cancel-ecosystem";
-        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC: return "DEx Accept Offer";
         case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED: return "Create Property - Fixed";
         case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE: return "Create Property - Variable";
-        case ELYSIUM_TYPE_PROMOTE_PROPERTY: return "Promote Property";
-        case ELYSIUM_TYPE_CLOSE_CROWDSALE: return "Close Crowdsale";
         case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: return "Create Property - Manual";
         case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS: return "Grant Property Tokens";
         case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS: return "Revoke Property Tokens";
@@ -71,6 +60,9 @@ std::string elysium::strTransactionType(uint16_t txType)
         case ELYSIUM_MESSAGE_TYPE_ALERT: return "ALERT";
         case ELYSIUM_MESSAGE_TYPE_DEACTIVATION: return "Feature Deactivation";
         case ELYSIUM_MESSAGE_TYPE_ACTIVATION: return "Feature Activation";
+        case ELYSIUM_TYPE_LELANTUS_MINT: return "Lelantus Mint";
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT: return "Lelantus JoinSplit";
+        case ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS: return "Change Lelantus Status";
 
         default: return "* unknown type *";
     }
@@ -131,32 +123,8 @@ bool CMPTransaction::interpret_Transaction()
         case ELYSIUM_TYPE_SEND_ALL:
             return interpret_SendAll();
 
-        case ELYSIUM_TYPE_TRADE_OFFER:
-            return interpret_TradeOffer();
-
-        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC:
-            return interpret_AcceptOfferBTC();
-
-        case ELYSIUM_TYPE_METADEX_TRADE:
-            return interpret_MetaDExTrade();
-
-        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE:
-            return interpret_MetaDExCancelPrice();
-
-        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR:
-            return interpret_MetaDExCancelPair();
-
-        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM:
-            return interpret_MetaDExCancelEcosystem();
-
         case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
             return interpret_CreatePropertyFixed();
-
-        case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE:
-            return interpret_CreatePropertyVariable();
-
-        case ELYSIUM_TYPE_CLOSE_CROWDSALE:
-            return interpret_CloseCrowdsale();
 
         case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL:
             return interpret_CreatePropertyManaged();
@@ -182,14 +150,14 @@ bool CMPTransaction::interpret_Transaction()
         case ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS:
             return interpret_UnfreezeTokens();
 
-        case ELYSIUM_TYPE_CREATE_DENOMINATION:
-            return interpret_CreateDenomination();
+        case ELYSIUM_TYPE_LELANTUS_MINT:
+            return interpret_LelantusMint();
 
-        case ELYSIUM_TYPE_SIMPLE_MINT:
-            return interpret_SimpleMint();
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
+            return interpret_LelantusJoinSplit();
 
-        case ELYSIUM_TYPE_SIMPLE_SPEND:
-            return interpret_SimpleSpend();
+        case ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS:
+            return interpret_ChangeLelantusStatus();
 
         case ELYSIUM_MESSAGE_TYPE_DEACTIVATION:
             return interpret_Deactivation();
@@ -293,163 +261,6 @@ bool CMPTransaction::interpret_SendAll()
     return true;
 }
 
-/** Tx 20 */
-bool CMPTransaction::interpret_TradeOffer()
-{
-    unsigned expectedSize = (version == MP_TX_PKT_V0) ? 33 : 34;
-    if (raw.size() < expectedSize) {
-        return false;
-    }
-    memcpy(&property, &raw[4], 4);
-    swapByteOrder32(property);
-    memcpy(&nValue, &raw[8], 8);
-    swapByteOrder64(nValue);
-    nNewValue = nValue;
-    memcpy(&amount_desired, &raw[16], 8);
-    memcpy(&blocktimelimit, &raw[24], 1);
-    memcpy(&min_fee, &raw[25], 8);
-    if (version > MP_TX_PKT_V0) {
-        memcpy(&subaction, &raw[33], 1);
-    }
-    swapByteOrder64(amount_desired);
-    swapByteOrder64(min_fee);
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
-        PrintToLog("\t  amount desired: %s\n", FormatDivisibleMP(amount_desired));
-        PrintToLog("\tblock time limit: %d\n", blocktimelimit);
-        PrintToLog("\t         min fee: %s\n", FormatDivisibleMP(min_fee));
-        if (version > MP_TX_PKT_V0) {
-            PrintToLog("\t      sub-action: %d\n", subaction);
-        }
-    }
-
-    return true;
-}
-
-/** Tx 22 */
-bool CMPTransaction::interpret_AcceptOfferBTC()
-{
-    if (raw.size() < 16) {
-        return false;
-    }
-    memcpy(&property, &raw[4], 4);
-    swapByteOrder32(property);
-    memcpy(&nValue, &raw[8], 8);
-    swapByteOrder64(nValue);
-    nNewValue = nValue;
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
-    }
-
-    return true;
-}
-
-/** Tx 25 */
-bool CMPTransaction::interpret_MetaDExTrade()
-{
-    if (raw.size() < 28) {
-        return false;
-    }
-    memcpy(&property, &raw[4], 4);
-    swapByteOrder32(property);
-    memcpy(&nValue, &raw[8], 8);
-    swapByteOrder64(nValue);
-    nNewValue = nValue;
-    memcpy(&desired_property, &raw[16], 4);
-    swapByteOrder32(desired_property);
-    memcpy(&desired_value, &raw[20], 8);
-    swapByteOrder64(desired_value);
-
-    action = CMPTransaction::ADD; // depreciated
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
-        PrintToLog("\tdesired property: %d (%s)\n", desired_property, strMPProperty(desired_property));
-        PrintToLog("\t   desired value: %s\n", FormatMP(desired_property, desired_value));
-    }
-
-    return true;
-}
-
-/** Tx 26 */
-bool CMPTransaction::interpret_MetaDExCancelPrice()
-{
-    if (raw.size() < 28) {
-        return false;
-    }
-    memcpy(&property, &raw[4], 4);
-    swapByteOrder32(property);
-    memcpy(&nValue, &raw[8], 8);
-    swapByteOrder64(nValue);
-    nNewValue = nValue;
-    memcpy(&desired_property, &raw[16], 4);
-    swapByteOrder32(desired_property);
-    memcpy(&desired_value, &raw[20], 8);
-    swapByteOrder64(desired_value);
-
-    action = CMPTransaction::CANCEL_AT_PRICE; // depreciated
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
-        PrintToLog("\tdesired property: %d (%s)\n", desired_property, strMPProperty(desired_property));
-        PrintToLog("\t   desired value: %s\n", FormatMP(desired_property, desired_value));
-    }
-
-    return true;
-}
-
-/** Tx 27 */
-bool CMPTransaction::interpret_MetaDExCancelPair()
-{
-    if (raw.size() < 12) {
-        return false;
-    }
-    memcpy(&property, &raw[4], 4);
-    swapByteOrder32(property);
-    memcpy(&desired_property, &raw[8], 4);
-    swapByteOrder32(desired_property);
-
-    nValue = 0; // depreciated
-    nNewValue = nValue; // depreciated
-    desired_value = 0; // depreciated
-    action = CMPTransaction::CANCEL_ALL_FOR_PAIR; // depreciated
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\tdesired property: %d (%s)\n", desired_property, strMPProperty(desired_property));
-    }
-
-    return true;
-}
-
-/** Tx 28 */
-bool CMPTransaction::interpret_MetaDExCancelEcosystem()
-{
-    if (raw.size() < 5) {
-        return false;
-    }
-    memcpy(&ecosystem, &raw[4], 1);
-
-    property = ecosystem; // depreciated
-    desired_property = ecosystem; // depreciated
-    nValue = 0; // depreciated
-    nNewValue = nValue; // depreciated
-    desired_value = 0; // depreciated
-    action = CMPTransaction::CANCEL_EVERYTHING; // depreciated
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t       ecosystem: %d\n", (int)ecosystem);
-    }
-
-    return true;
-}
-
 /** Tx 50 */
 bool CMPTransaction::interpret_CreatePropertyFixed()
 {
@@ -461,6 +272,11 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
         break;
     case 1:
         if (raw.size() < 26) {
+            return false;
+        }
+        break;
+    case 2:
+        if (raw.size() < 27) {
             return false;
         }
         break;
@@ -495,8 +311,8 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
     p += 8;
     nNewValue = nValue;
 
-    if (version == 1) {
-        memcpy(&sigmaStatus, p, 1);
+    if (version >= 2) {
+        memcpy(&lelantusStatus, p, 1);
         p += 1;
     }
 
@@ -510,93 +326,12 @@ bool CMPTransaction::interpret_CreatePropertyFixed()
         PrintToLog("\t             url: %s\n", url);
         PrintToLog("\t            data: %s\n", data);
         PrintToLog("\t           value: %s\n", FormatByType(nValue, prop_type));
-        PrintToLog("\t    sigma status: %u\n", static_cast<uint8_t>(sigmaStatus));
+        PrintToLog("\t lelantus status: %u\n", static_cast<uint8_t>(lelantusStatus));
     }
 
     if (isOverrun(p)) {
         PrintToLog("%s(): rejected: malformed string value(s)\n", __func__);
         return false;
-    }
-
-    return true;
-}
-
-/** Tx 51 */
-bool CMPTransaction::interpret_CreatePropertyVariable()
-{
-    if (raw.size() < 39) {
-        return false;
-    }
-    auto p = raw.data() + 11;
-    auto end = raw.data() + raw.size();
-    std::vector<std::string> spstr;
-    memcpy(&ecosystem, &raw[4], 1);
-    memcpy(&prop_type, &raw[5], 2);
-    swapByteOrder16(prop_type);
-    memcpy(&prev_prop_id, &raw[7], 4);
-    swapByteOrder32(prev_prop_id);
-    for (int i = 0; i < 5; i++) {
-        auto last = std::find(p, end, 0);
-        if (last == end) {
-            return false;
-        }
-        spstr.push_back(std::string(p, last));
-        p += spstr.back().size() + 1;
-    }
-    int i = 0;
-    memcpy(category, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(category)-1)); i++;
-    memcpy(subcategory, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(subcategory)-1)); i++;
-    memcpy(name, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(name)-1)); i++;
-    memcpy(url, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(url)-1)); i++;
-    memcpy(data, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(data)-1)); i++;
-    memcpy(&property, p, 4);
-    swapByteOrder32(property);
-    p += 4;
-    memcpy(&nValue, p, 8);
-    swapByteOrder64(nValue);
-    p += 8;
-    nNewValue = nValue;
-    memcpy(&deadline, p, 8);
-    swapByteOrder64(deadline);
-    p += 8;
-    memcpy(&early_bird, p++, 1);
-    memcpy(&percentage, p++, 1);
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t       ecosystem: %d\n", ecosystem);
-        PrintToLog("\t   property type: %d (%s)\n", prop_type, strPropertyType(prop_type));
-        PrintToLog("\tprev property id: %d\n", prev_prop_id);
-        PrintToLog("\t        category: %s\n", category);
-        PrintToLog("\t     subcategory: %s\n", subcategory);
-        PrintToLog("\t            name: %s\n", name);
-        PrintToLog("\t             url: %s\n", url);
-        PrintToLog("\t            data: %s\n", data);
-        PrintToLog("\tproperty desired: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t tokens per unit: %s\n", FormatByType(nValue, prop_type));
-        PrintToLog("\t        deadline: %s (%x)\n", DateTimeStrFormat("%Y-%m-%d %H:%M:%S", deadline), deadline);
-        PrintToLog("\tearly bird bonus: %d\n", early_bird);
-        PrintToLog("\t    issuer bonus: %d\n", percentage);
-    }
-
-    if (isOverrun(p)) {
-        PrintToLog("%s(): rejected: malformed string value(s)\n", __func__);
-        return false;
-    }
-
-    return true;
-}
-
-/** Tx 53 */
-bool CMPTransaction::interpret_CloseCrowdsale()
-{
-    if (raw.size() < 8) {
-        return false;
-    }
-    memcpy(&property, &raw[4], 4);
-    swapByteOrder32(property);
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
     }
 
     return true;
@@ -616,6 +351,11 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
             return false;
         }
         break;
+    case 2:
+        if (raw.size() < 19) {
+            return false;
+        }
+        break;
     default:
         return false;
     }
@@ -643,8 +383,8 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
     memcpy(url, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(url)-1)); i++;
     memcpy(data, spstr[i].c_str(), std::min(spstr[i].length(), sizeof(data)-1)); i++;
 
-    if (version == 1) {
-        memcpy(&sigmaStatus, p, 1);
+    if (version >= 2) {
+        memcpy(&lelantusStatus, p, 1);
         p += 1;
     }
 
@@ -657,7 +397,7 @@ bool CMPTransaction::interpret_CreatePropertyManaged()
         PrintToLog("\t            name: %s\n", name);
         PrintToLog("\t             url: %s\n", url);
         PrintToLog("\t            data: %s\n", data);
-        PrintToLog("\t    sigma status: %u\n", static_cast<uint8_t>(sigmaStatus));
+        PrintToLog("\t lelantus status: %u\n", static_cast<uint8_t>(lelantusStatus));
     }
 
     if (isOverrun(p)) {
@@ -834,134 +574,92 @@ bool CMPTransaction::interpret_UnfreezeTokens()
     return true;
 }
 
-/** Tx 1024 */
-bool CMPTransaction::interpret_SimpleSpend()
+/** Tx 1027 */
+bool CMPTransaction::interpret_LelantusMint()
 {
-    if (raw.size() < 15) {
+    constexpr unsigned ElysiumMintSize = 34,
+        IdSize = 32,
+        SchnorrProofSize = 98;
+
+    if (raw.size() != 16 + ElysiumMintSize + IdSize + SchnorrProofSize) {
         return false;
     }
 
     memcpy(&property, &raw[4], 4);
     swapByteOrder(property);
-    memcpy(&denomination, &raw[8], 1);
-    memcpy(&group, &raw[9], 4);
-    swapByteOrder(group);
-    memcpy(&groupSize, &raw[13], 2);
-    swapByteOrder(groupSize);
 
-    CDataStream serialized(
-        reinterpret_cast<char*>(&raw[15]),
-        reinterpret_cast<char*>(raw.data() + raw.size()),
-        SER_NETWORK, PROTOCOL_VERSION
-    );
-
-    spend.reset(new SigmaProof(DefaultSigmaParams));
-    serial.reset(new secp_primitives::Scalar());
-    try {
-        if (version == MP_TX_PKT_V1) {
-            std::array<uint8_t, 33> pubkeyBuffer;
-            serialized.read(reinterpret_cast<char*>(pubkeyBuffer.data()), pubkeyBuffer.size());
-            ecdsaPubkey.Set(pubkeyBuffer.begin(), pubkeyBuffer.end());
-
-            serialized >> *spend;
-            serialized >> ecdsaSignature;
-
-            // Calculate serial.
-            uint256 hash;
-            CSHA256()
-                .Write(ecdsaPubkey.begin(), ecdsaPubkey.size())
-                .Finalize(hash.begin());
-
-            serial->memberFromSeed(hash.begin());
-        } else {
-            serialized >> *serial;
-            serialized >> *spend;
-        }
-    } catch (std::ios_base::failure&) {
-        PrintToLog("\tsize of data is less than spend size");
-        return false;
-    }
-
-    if (!serialized.eof()) {
-        PrintToLog("\tsize of data exceed spend size");
-        return false;
-    }
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           spend: %s\n", std::to_string(denomination));
-    }
-
-    return true;
-}
-
-/** Tx 1025 */
-bool CMPTransaction::interpret_CreateDenomination()
-{
-    if (raw.size() < 16) {
-        return false;
-    }
-
-    memcpy(&property, &raw[4], 4);
-    swapByteOrder32(property);
-    memcpy(&nValue, &raw[8], 8);
-    swapByteOrder64(nValue);
-
-    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           value: %s\n", FormatMP(property, nValue));
-    }
-
-    return true;
-}
-
-/** Tx 1026 */
-bool CMPTransaction::interpret_SimpleMint()
-{
-    constexpr unsigned elysiumMintSize = 35;
-
-    if (raw.size() < 9 + elysiumMintSize) {
-        return false;
-    }
-
-    memcpy(&property, &raw[4], 4);
-    swapByteOrder32(property);
-
-    uint8_t mintAmount;
-    memcpy(&mintAmount, &raw[8], 1);
-
-    if (raw.size() != 9 + elysiumMintSize * mintAmount) {
-        return false;
-    }
-
-    mints.resize(mintAmount);
     CDataStream deserialized(
-        reinterpret_cast<char*>(&raw[9]),
-        reinterpret_cast<char*>(raw.data() + raw.size()),
+        reinterpret_cast<char*>(&raw[8]),
+        reinterpret_cast<char*>(&raw[8] + ElysiumMintSize + IdSize),
         SER_NETWORK, CLIENT_VERSION
     );
 
-    for (auto &mint : mints) {
-        deserialized >> mint;
+    lelantusMint = lelantus::PublicCoin();
+    lelantusId = MintEntryId();
+
+    deserialized >> lelantusMint.get();
+    deserialized >> lelantusId.get();
+
+    memcpy(&lelantusMintValue, &raw[8 + ElysiumMintSize + IdSize], 8);
+    swapByteOrder(lelantusMintValue);
+
+    lelantusSchnorrProof.insert(lelantusSchnorrProof.end(),
+        raw.begin() + 8 + ElysiumMintSize + IdSize + 8, raw.end());
+
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
+        PrintToLog("\t           mints: %d\n", FormatShortMP(property, lelantusMintValue));
+    }
+
+    return true;
+}
+
+/** Tx 1028 */
+bool CMPTransaction::interpret_LelantusJoinSplit()
+{
+    PrintToLog("=== %s(): interpreting: calling...\n", __func__);
+    if (raw.size() < 8) {
+        return false;
+    }
+
+    memcpy(&property, &raw[4], 4);
+    memcpy(&lelantusSpendAmount, &raw[8], 8);
+    swapByteOrder(property);
+    swapByteOrder(lelantusSpendAmount);
+
+    CDataStream deserialized(
+        reinterpret_cast<char*>(&raw[16]),
+        reinterpret_cast<char*>(&raw[raw.size()]),
+        SER_NETWORK, CLIENT_VERSION
+    );
+
+    lelantusJoinSplit = lelantus::JoinSplit(lelantus::Params::get_elysium(), deserialized);
+
+    if (!deserialized.eof()) {
+        lelantusJoinSplitMint = JoinSplitMint();
+        deserialized >> lelantusJoinSplitMint.get();
     }
 
     if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
-        std::vector<uint8_t> denominations;
-        denominations.reserve(mints.size());
-        for (auto const& mint : mints) {
-            denominations.push_back(mint.first);
-        }
-        std::sort(denominations.begin(), denominations.end());
-
-        std::stringstream ss;
-        for (auto const &denom : denominations) {
-            ss << denom << ", ";
-        }
-        auto denomsStr = ss.str();
-        denomsStr.resize(denomsStr.size() - 2);
-
         PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
-        PrintToLog("\t           mints: %s\n", denomsStr);
+        PrintToLog("\t           value: %s\n", FormatMP(property, lelantusSpendAmount));
+    }
+
+    return true;
+}
+
+/** Tx 1029 */
+bool CMPTransaction::interpret_ChangeLelantusStatus()
+{
+    if (raw.size() < 9) {
+        return false;
+    }
+    memcpy(&property, &raw[4], 4);
+    swapByteOrder32(property);
+    memcpy(&lelantusStatus, &raw[8], 1);
+
+    if ((!rpcOnly && elysium_debug_packets) || elysium_debug_packets_readonly) {
+        PrintToLog("\t        property: %d (%s)\n", property, strMPProperty(property));
     }
 
     return true;
@@ -1078,42 +776,10 @@ int CMPTransaction::interpretPacket()
 
         case ELYSIUM_TYPE_SEND_ALL:
             status = logicMath_SendAll();
-            break;
-
-        case ELYSIUM_TYPE_TRADE_OFFER:
-            status = logicMath_TradeOffer();
-            break;
-
-        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC:
-            status = logicMath_AcceptOffer_BTC();
-            break;
-
-        case ELYSIUM_TYPE_METADEX_TRADE:
-            status = logicMath_MetaDExTrade();
-            break;
-
-        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE:
-            status = logicMath_MetaDExCancelPrice();
-            break;
-
-        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR:
-            status = logicMath_MetaDExCancelPair();
-            break;
-
-        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM:
-            status = logicMath_MetaDExCancelEcosystem();
-            break;
+            break;        
 
         case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
             status = logicMath_CreatePropertyFixed();
-            break;
-
-        case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE:
-            status = logicMath_CreatePropertyVariable();
-            break;
-
-        case ELYSIUM_TYPE_CLOSE_CROWDSALE:
-            status = logicMath_CloseCrowdsale();
             break;
 
         case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL:
@@ -1148,11 +814,7 @@ int CMPTransaction::interpretPacket()
             status = logicMath_UnfreezeTokens();
             break;
 
-        case ELYSIUM_TYPE_CREATE_DENOMINATION:
-            status = logicMath_CreateDenomination();
-            break;
-
-        case ELYSIUM_MESSAGE_TYPE_DEACTIVATION:
+		case ELYSIUM_MESSAGE_TYPE_DEACTIVATION:
             status = logicMath_Deactivation();
             break;
 
@@ -1169,85 +831,6 @@ int CMPTransaction::interpretPacket()
     }
 
     return status;
-}
-
-/** Passive effect of crowdsale participation. */
-int CMPTransaction::logicHelper_CrowdsaleParticipation()
-{
-    CMPCrowd* pcrowdsale = getCrowd(receiver);
-
-    // No active crowdsale
-    if (pcrowdsale == NULL) {
-        return (PKT_ERROR_CROWD -1);
-    }
-    // Active crowdsale, but not for this property
-    if (pcrowdsale->getCurrDes() != property) {
-        return (PKT_ERROR_CROWD -2);
-    }
-
-    CMPSPInfo::Entry sp;
-    assert(_my_sps->getSP(pcrowdsale->getPropertyId(), sp));
-    PrintToLog("INVESTMENT SEND to Crowdsale Issuer: %s\n", receiver);
-
-    // Holds the tokens to be credited to the sender and issuer
-    std::pair<int64_t, int64_t> tokens;
-
-    // Passed by reference to determine, if max_tokens has been reached
-    bool close_crowdsale = false;
-
-    // Units going into the calculateFundraiser function must match the unit of
-    // the fundraiser's property_type. By default this means satoshis in and
-    // satoshis out. In the condition that the fundraiser is divisible, but
-    // indivisible tokens are accepted, it must account for .0 Div != 1 Indiv,
-    // but actually 1.0 Div == 100000000 Indiv. The unit must be shifted or the
-    // values will be incorrect, which is what is checked below.
-    bool inflateAmount = isPropertyDivisible(property) ? false : true;
-
-    // Calculate the amounts to credit for this fundraiser
-    calculateFundraiser(inflateAmount, nValue, sp.early_bird, sp.deadline, blockTime,
-            sp.num_tokens, sp.percentage, getTotalTokens(pcrowdsale->getPropertyId()),
-            tokens, close_crowdsale);
-
-    if (elysium_debug_sp) {
-        PrintToLog("%s(): granting via crowdsale to user: %s %d (%s)\n",
-                __func__, FormatMP(property, tokens.first), property, strMPProperty(property));
-        PrintToLog("%s(): granting via crowdsale to issuer: %s %d (%s)\n",
-                __func__, FormatMP(property, tokens.second), property, strMPProperty(property));
-    }
-
-    // Update the crowdsale object
-    pcrowdsale->incTokensUserCreated(tokens.first);
-    pcrowdsale->incTokensIssuerCreated(tokens.second);
-
-    // Data to pass to txFundraiserData
-    int64_t txdata[] = {(int64_t) nValue, blockTime, tokens.first, tokens.second};
-    std::vector<int64_t> txDataVec(txdata, txdata + sizeof(txdata) / sizeof(txdata[0]));
-
-    // Insert data about crowdsale participation
-    pcrowdsale->insertDatabase(txid, txDataVec);
-
-    // Credit tokens for this fundraiser
-    if (tokens.first > 0) {
-        assert(update_tally_map(sender, pcrowdsale->getPropertyId(), tokens.first, BALANCE));
-    }
-    if (tokens.second > 0) {
-        assert(update_tally_map(receiver, pcrowdsale->getPropertyId(), tokens.second, BALANCE));
-    }
-
-    // Number of tokens has changed, update fee distribution thresholds
-    NotifyTotalTokensChanged(pcrowdsale->getPropertyId(), block);
-
-    // Close crowdsale, if we hit MAX_TOKENS
-    if (close_crowdsale) {
-        eraseMaxedCrowdsale(receiver, blockTime, block);
-    }
-
-    // Indicate, if no tokens were transferred
-    if (!tokens.first && !tokens.second) {
-        return (PKT_ERROR_CROWD -3);
-    }
-
-    return 0;
 }
 
 /** Tx 0 */
@@ -1294,9 +877,6 @@ int CMPTransaction::logicMath_SimpleSend()
     // Move the tokens
     assert(update_tally_map(sender, property, -nValue, BALANCE));
     assert(update_tally_map(receiver, property, nValue, BALANCE));
-
-    // Is there an active crowdsale running from this recepient?
-    logicHelper_CrowdsaleParticipation();
 
     return 0;
 }
@@ -1380,7 +960,7 @@ int CMPTransaction::logicMath_SendToOwners()
     assert(sent_so_far == (int64_t)nValue);
 
     // Number of tokens has changed, update fee distribution thresholds
-    if (version == MP_TX_PKT_V0) NotifyTotalTokensChanged(ELYSIUM_PROPERTY_ELYSIUM, block); // fee was burned
+    // if (version == MP_TX_PKT_V0) NotifyTotalTokensChanged(ELYSIUM_PROPERTY_ELYSIUM, block); // fee was burned
 
     return 0;
 }
@@ -1448,329 +1028,6 @@ int CMPTransaction::logicMath_SendAll()
     return 0;
 }
 
-/** Tx 20 */
-int CMPTransaction::logicMath_TradeOffer()
-{
-    if (!IsTransactionTypeAllowed(block, property, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
-        return (PKT_ERROR_TRADEOFFER -22);
-    }
-
-    if (MAX_INT_8_BYTES < nValue) {
-        PrintToLog("%s(): rejected: value out of range or zero: %d\n", __func__, nValue);
-        return (PKT_ERROR_TRADEOFFER -23);
-    }
-
-    if (ELYSIUM_PROPERTY_TELYSIUM != property && ELYSIUM_PROPERTY_ELYSIUM != property) {
-        PrintToLog("%s(): rejected: property for sale %d must be ELYSIUM or TELYSIUM\n", __func__, property);
-        return (PKT_ERROR_TRADEOFFER -47);
-    }
-
-    // ------------------------------------------
-
-    int rc = PKT_ERROR_TRADEOFFER;
-
-    // figure out which Action this is based on amount for sale, version & etc.
-    switch (version)
-    {
-        case MP_TX_PKT_V0:
-        {
-            if (0 != nValue) {
-                if (!DEx_offerExists(sender, property)) {
-                    rc = DEx_offerCreate(sender, property, nValue, block, amount_desired, min_fee, blocktimelimit, txid, &nNewValue);
-                } else {
-                    rc = DEx_offerUpdate(sender, property, nValue, block, amount_desired, min_fee, blocktimelimit, txid, &nNewValue);
-                }
-            } else {
-                // what happens if nValue is 0 for V0 ?  ANSWER: check if exists and it does -- cancel, otherwise invalid
-                if (DEx_offerExists(sender, property)) {
-                    rc = DEx_offerDestroy(sender, property);
-                } else {
-                    PrintToLog("%s(): rejected: sender %s has no active sell offer for property: %d\n", __func__, sender, property);
-                    rc = (PKT_ERROR_TRADEOFFER -49);
-                }
-            }
-
-            break;
-        }
-
-        case MP_TX_PKT_V1:
-        {
-            if (DEx_offerExists(sender, property)) {
-                if (CANCEL != subaction && UPDATE != subaction) {
-                    PrintToLog("%s(): rejected: sender %s has an active sell offer for property: %d\n", __func__, sender, property);
-                    rc = (PKT_ERROR_TRADEOFFER -48);
-                    break;
-                }
-            } else {
-                // Offer does not exist
-                if (NEW != subaction) {
-                    PrintToLog("%s(): rejected: sender %s has no active sell offer for property: %d\n", __func__, sender, property);
-                    rc = (PKT_ERROR_TRADEOFFER -49);
-                    break;
-                }
-            }
-
-            switch (subaction) {
-                case NEW:
-                    rc = DEx_offerCreate(sender, property, nValue, block, amount_desired, min_fee, blocktimelimit, txid, &nNewValue);
-                    break;
-
-                case UPDATE:
-                    rc = DEx_offerUpdate(sender, property, nValue, block, amount_desired, min_fee, blocktimelimit, txid, &nNewValue);
-                    break;
-
-                case CANCEL:
-                    rc = DEx_offerDestroy(sender, property);
-                    break;
-
-                default:
-                    rc = (PKT_ERROR -999);
-                    break;
-            }
-            break;
-        }
-
-        default:
-            rc = (PKT_ERROR -500); // neither V0 nor V1
-            break;
-    };
-
-    return rc;
-}
-
-/** Tx 22 */
-int CMPTransaction::logicMath_AcceptOffer_BTC()
-{
-    if (!IsTransactionTypeAllowed(block, property, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
-        return (DEX_ERROR_ACCEPT -22);
-    }
-
-    if (nValue <= 0 || MAX_INT_8_BYTES < nValue) {
-        PrintToLog("%s(): rejected: value out of range or zero: %d\n", __func__, nValue);
-        return (DEX_ERROR_ACCEPT -23);
-    }
-
-    // ------------------------------------------
-
-    // the min fee spec requirement is checked in the following function
-    int rc = DEx_acceptCreate(sender, receiver, property, nValue, block, tx_fee_paid, &nNewValue);
-
-    return rc;
-}
-
-/** Tx 25 */
-int CMPTransaction::logicMath_MetaDExTrade()
-{
-    if (!IsTransactionTypeAllowed(block, property, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
-        return (PKT_ERROR_METADEX -22);
-    }
-
-    if (property == desired_property) {
-        PrintToLog("%s(): rejected: property for sale %d and desired property %d must not be equal\n",
-                __func__,
-                property,
-                desired_property);
-        return (PKT_ERROR_METADEX -29);
-    }
-
-    if (isTestEcosystemProperty(property) != isTestEcosystemProperty(desired_property)) {
-        PrintToLog("%s(): rejected: property for sale %d and desired property %d not in same ecosystem\n",
-                __func__,
-                property,
-                desired_property);
-        return (PKT_ERROR_METADEX -30);
-    }
-
-    if (!IsPropertyIdValid(property)) {
-        PrintToLog("%s(): rejected: property for sale %d does not exist\n", __func__, property);
-        return (PKT_ERROR_METADEX -31);
-    }
-
-    if (!IsPropertyIdValid(desired_property)) {
-        PrintToLog("%s(): rejected: desired property %d does not exist\n", __func__, desired_property);
-        return (PKT_ERROR_METADEX -32);
-    }
-
-    if (nNewValue <= 0 || MAX_INT_8_BYTES < nNewValue) {
-        PrintToLog("%s(): rejected: amount for sale out of range or zero: %d\n", __func__, nNewValue);
-        return (PKT_ERROR_METADEX -33);
-    }
-
-    if (desired_value <= 0 || MAX_INT_8_BYTES < desired_value) {
-        PrintToLog("%s(): rejected: desired amount out of range or zero: %d\n", __func__, desired_value);
-        return (PKT_ERROR_METADEX -34);
-    }
-
-    if (!IsFeatureActivated(FEATURE_TRADEALLPAIRS, block)) {
-        // Trading non-Elysium pairs is not allowed before trading all pairs is activated
-        if ((property != ELYSIUM_PROPERTY_ELYSIUM) && (desired_property != ELYSIUM_PROPERTY_ELYSIUM) &&
-            (property != ELYSIUM_PROPERTY_TELYSIUM) && (desired_property != ELYSIUM_PROPERTY_TELYSIUM)) {
-            PrintToLog("%s(): rejected: one side of a trade [%d, %d] must be ELYSIUM or TELYSIUM\n", __func__, property, desired_property);
-            return (PKT_ERROR_METADEX -35);
-        }
-    }
-
-    int64_t nBalance = getMPbalance(sender, property, BALANCE);
-    if (nBalance < (int64_t) nNewValue) {
-        PrintToLog("%s(): rejected: sender %s has insufficient balance of property %d [%s < %s]\n",
-                __func__,
-                sender,
-                property,
-                FormatMP(property, nBalance),
-                FormatMP(property, nNewValue));
-        return (PKT_ERROR_METADEX -25);
-    }
-
-    // ------------------------------------------
-
-    t_tradelistdb->recordNewTrade(txid, sender, property, desired_property, block, tx_idx);
-    int rc = MetaDEx_ADD(sender, property, nNewValue, block, desired_property, desired_value, txid, tx_idx);
-    return rc;
-}
-
-/** Tx 26 */
-int CMPTransaction::logicMath_MetaDExCancelPrice()
-{
-    if (!IsTransactionTypeAllowed(block, property, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
-        return (PKT_ERROR_METADEX -22);
-    }
-
-    if (property == desired_property) {
-        PrintToLog("%s(): rejected: property for sale %d and desired property %d must not be equal\n",
-                __func__,
-                property,
-                desired_property);
-        return (PKT_ERROR_METADEX -29);
-    }
-
-    if (isTestEcosystemProperty(property) != isTestEcosystemProperty(desired_property)) {
-        PrintToLog("%s(): rejected: property for sale %d and desired property %d not in same ecosystem\n",
-                __func__,
-                property,
-                desired_property);
-        return (PKT_ERROR_METADEX -30);
-    }
-
-    if (!IsPropertyIdValid(property)) {
-        PrintToLog("%s(): rejected: property for sale %d does not exist\n", __func__, property);
-        return (PKT_ERROR_METADEX -31);
-    }
-
-    if (!IsPropertyIdValid(desired_property)) {
-        PrintToLog("%s(): rejected: desired property %d does not exist\n", __func__, desired_property);
-        return (PKT_ERROR_METADEX -32);
-    }
-
-    if (nNewValue <= 0 || MAX_INT_8_BYTES < nNewValue) {
-        PrintToLog("%s(): rejected: amount for sale out of range or zero: %d\n", __func__, nNewValue);
-        return (PKT_ERROR_METADEX -33);
-    }
-
-    if (desired_value <= 0 || MAX_INT_8_BYTES < desired_value) {
-        PrintToLog("%s(): rejected: desired amount out of range or zero: %d\n", __func__, desired_value);
-        return (PKT_ERROR_METADEX -34);
-    }
-
-    // ------------------------------------------
-
-    int rc = MetaDEx_CANCEL_AT_PRICE(txid, block, sender, property, nNewValue, desired_property, desired_value);
-
-    return rc;
-}
-
-/** Tx 27 */
-int CMPTransaction::logicMath_MetaDExCancelPair()
-{
-    if (!IsTransactionTypeAllowed(block, property, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
-        return (PKT_ERROR_METADEX -22);
-    }
-
-    if (property == desired_property) {
-        PrintToLog("%s(): rejected: property for sale %d and desired property %d must not be equal\n",
-                __func__,
-                property,
-                desired_property);
-        return (PKT_ERROR_METADEX -29);
-    }
-
-    if (isTestEcosystemProperty(property) != isTestEcosystemProperty(desired_property)) {
-        PrintToLog("%s(): rejected: property for sale %d and desired property %d not in same ecosystem\n",
-                __func__,
-                property,
-                desired_property);
-        return (PKT_ERROR_METADEX -30);
-    }
-
-    if (!IsPropertyIdValid(property)) {
-        PrintToLog("%s(): rejected: property for sale %d does not exist\n", __func__, property);
-        return (PKT_ERROR_METADEX -31);
-    }
-
-    if (!IsPropertyIdValid(desired_property)) {
-        PrintToLog("%s(): rejected: desired property %d does not exist\n", __func__, desired_property);
-        return (PKT_ERROR_METADEX -32);
-    }
-
-    // ------------------------------------------
-
-    int rc = MetaDEx_CANCEL_ALL_FOR_PAIR(txid, block, sender, property, desired_property);
-
-    return rc;
-}
-
-/** Tx 28 */
-int CMPTransaction::logicMath_MetaDExCancelEcosystem()
-{
-    if (!IsTransactionTypeAllowed(block, ecosystem, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
-        return (PKT_ERROR_METADEX -22);
-    }
-
-    if (ELYSIUM_PROPERTY_ELYSIUM != ecosystem && ELYSIUM_PROPERTY_TELYSIUM != ecosystem) {
-        PrintToLog("%s(): rejected: invalid ecosystem: %d\n", __func__, ecosystem);
-        return (PKT_ERROR_METADEX -21);
-    }
-
-    int rc = MetaDEx_CANCEL_EVERYTHING(txid, block, sender, ecosystem);
-
-    return rc;
-}
-
 /** Tx 50 */
 int CMPTransaction::logicMath_CreatePropertyFixed()
 {
@@ -1823,13 +1080,13 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
 
     CMPSPInfo::Entry newSP;
 
-    if (IsFeatureActivated(FEATURE_SIGMA, block)) {
-        if (!IsSigmaStatusValid(sigmaStatus)) {
-            PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+    if (IsFeatureActivated(FEATURE_LELANTUS, block)) {
+        if (!IsLelantusStatusValid(lelantusStatus)) {
+            PrintToLog("%s(): rejected: lelantus status %u is not valid\n", __func__, static_cast<uint8_t>(lelantusStatus));
             return PKT_ERROR_SP - 900;
         }
 
-        newSP.sigmaStatus = sigmaStatus;
+        newSP.lelantusStatus = lelantusStatus;
     }
 
     // ------------------------------------------
@@ -1851,181 +1108,9 @@ int CMPTransaction::logicMath_CreatePropertyFixed()
     assert(propertyId > 0);
     assert(update_tally_map(sender, propertyId, nValue, BALANCE));
 
-    NotifyTotalTokensChanged(propertyId, block);
+    // NotifyTotalTokensChanged(propertyId, block);
 
-    return 0;
-}
-
-/** Tx 51 */
-int CMPTransaction::logicMath_CreatePropertyVariable()
-{
-    uint256 blockHash;
-    {
-        LOCK(cs_main);
-
-        CBlockIndex* pindex = chainActive[block];
-        if (pindex == NULL) {
-            PrintToLog("%s(): ERROR: block %d not in the active chain\n", __func__, block);
-            return (PKT_ERROR_SP -20);
-        }
-        blockHash = pindex->GetBlockHash();
-    }
-
-    if (ELYSIUM_PROPERTY_ELYSIUM != ecosystem && ELYSIUM_PROPERTY_TELYSIUM != ecosystem) {
-        PrintToLog("%s(): rejected: invalid ecosystem: %d\n", __func__, (uint32_t) ecosystem);
-        return (PKT_ERROR_SP -21);
-    }
-
-    if (IsFeatureActivated(FEATURE_SPCROWDCROSSOVER, block)) {
-    /**
-     * Ecosystem crossovers shall not be allowed after the feature was enabled.
-     */
-    if (isTestEcosystemProperty(ecosystem) != isTestEcosystemProperty(property)) {
-        PrintToLog("%s(): rejected: ecosystem %d of tokens to issue and desired property %d not in same ecosystem\n",
-                __func__,
-                ecosystem,
-                property);
-        return (PKT_ERROR_SP -50);
-    }
-    }
-
-    if (!IsTransactionTypeAllowed(block, ecosystem, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
-        return (PKT_ERROR_SP -22);
-    }
-
-    if (nValue <= 0 || MAX_INT_8_BYTES < nValue) {
-        PrintToLog("%s(): rejected: value out of range or zero: %d\n", __func__, nValue);
-        return (PKT_ERROR_SP -23);
-    }
-
-    if (!IsPropertyIdValid(property)) {
-        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
-        return (PKT_ERROR_SP -24);
-    }
-
-    if (ELYSIUM_PROPERTY_TYPE_INDIVISIBLE != prop_type && ELYSIUM_PROPERTY_TYPE_DIVISIBLE != prop_type) {
-        PrintToLog("%s(): rejected: invalid property type: %d\n", __func__, prop_type);
-        return (PKT_ERROR_SP -36);
-    }
-
-    if ('\0' == name[0]) {
-        PrintToLog("%s(): rejected: property name must not be empty\n", __func__);
-        return (PKT_ERROR_SP -37);
-    }
-
-    if (!deadline || (int64_t) deadline < blockTime) {
-        PrintToLog("%s(): rejected: deadline must not be in the past [%d < %d]\n", __func__, deadline, blockTime);
-        return (PKT_ERROR_SP -38);
-    }
-
-    if (NULL != getCrowd(sender)) {
-        PrintToLog("%s(): rejected: sender %s has an active crowdsale\n", __func__, sender);
-        return (PKT_ERROR_SP -39);
-    }
-
-    if (IsRequireCreationFee(ecosystem, block) && !CheckPropertyCreationFee()) {
-        PrintToLog("%s(): rejected: not enough fee for property creation\n", __func__);
-        return PKT_ERROR_SP - 105;
-    }
-
-    // ------------------------------------------
-
-    CMPSPInfo::Entry newSP;
-    newSP.issuer = sender;
-    newSP.txid = txid;
-    newSP.prop_type = prop_type;
-    newSP.num_tokens = nValue;
-    newSP.category.assign(category);
-    newSP.subcategory.assign(subcategory);
-    newSP.name.assign(name);
-    newSP.url.assign(url);
-    newSP.data.assign(data);
-    newSP.fixed = false;
-    newSP.property_desired = property;
-    newSP.deadline = deadline;
-    newSP.early_bird = early_bird;
-    newSP.percentage = percentage;
-    newSP.creation_block = blockHash;
-    newSP.update_block = newSP.creation_block;
-
-    const uint32_t propertyId = _my_sps->putSP(ecosystem, newSP);
-    assert(propertyId > 0);
-    my_crowds.insert(std::make_pair(sender, CMPCrowd(propertyId, nValue, property, deadline, early_bird, percentage, 0, 0)));
-
-    PrintToLog("CREATED CROWDSALE id: %d value: %d property: %d\n", propertyId, nValue, property);
-
-    return 0;
-}
-
-/** Tx 53 */
-int CMPTransaction::logicMath_CloseCrowdsale()
-{
-    uint256 blockHash;
-    {
-        LOCK(cs_main);
-
-        CBlockIndex* pindex = chainActive[block];
-        if (pindex == NULL) {
-            PrintToLog("%s(): ERROR: block %d not in the active chain\n", __func__, block);
-            return (PKT_ERROR_SP -20);
-        }
-        blockHash = pindex->GetBlockHash();
-    }
-
-    if (!IsTransactionTypeAllowed(block, property, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
-        return (PKT_ERROR_SP -22);
-    }
-
-    if (!IsPropertyIdValid(property)) {
-        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
-        return (PKT_ERROR_SP -24);
-    }
-
-    CrowdMap::iterator it = my_crowds.find(sender);
-    if (it == my_crowds.end()) {
-        PrintToLog("%s(): rejected: sender %s has no active crowdsale\n", __func__, sender);
-        return (PKT_ERROR_SP -40);
-    }
-
-    const CMPCrowd& crowd = it->second;
-    if (property != crowd.getPropertyId()) {
-        PrintToLog("%s(): rejected: property identifier mismatch [%d != %d]\n", __func__, property, crowd.getPropertyId());
-        return (PKT_ERROR_SP -41);
-    }
-
-    // ------------------------------------------
-
-    CMPSPInfo::Entry sp;
-    assert(_my_sps->getSP(property, sp));
-
-    int64_t missedTokens = GetMissedIssuerBonus(sp, crowd);
-
-    sp.historicalData = crowd.getDatabase();
-    sp.update_block = blockHash;
-    sp.close_early = true;
-    sp.timeclosed = blockTime;
-    sp.txid_close = txid;
-    sp.missedTokens = missedTokens;
-
-    assert(_my_sps->updateSP(property, sp));
-    if (missedTokens > 0) {
-        assert(update_tally_map(sp.issuer, property, missedTokens, BALANCE));
-    }
-    my_crowds.erase(it);
-
-    if (elysium_debug_sp) PrintToLog("CLOSED CROWDSALE id: %d=%X\n", property, property);
+	LogPrintf("CREATED MANUAL PROPERTY id: %d admin: %s\n", propertyId, sender);
 
     return 0;
 }
@@ -2077,13 +1162,13 @@ int CMPTransaction::logicMath_CreatePropertyManaged()
 
     CMPSPInfo::Entry newSP;
 
-    if (IsFeatureActivated(FEATURE_SIGMA, block)) {
-        if (!IsSigmaStatusValid(sigmaStatus)) {
-            PrintToLog("%s(): rejected: sigma status %u is not valid\n", __func__, static_cast<uint8_t>(sigmaStatus));
+    if (IsFeatureActivated(FEATURE_LELANTUS, block)) {
+        if (!IsLelantusStatusValid(lelantusStatus)) {
+            PrintToLog("%s(): rejected: lelantus status %u is not valid\n", __func__, static_cast<uint8_t>(lelantusStatus));
             return PKT_ERROR_SP - 900;
         }
 
-        newSP.sigmaStatus = sigmaStatus;
+        newSP.lelantusStatus = lelantusStatus;
     }
 
     // ------------------------------------------
@@ -2187,16 +1272,7 @@ int CMPTransaction::logicMath_GrantTokens()
     // Move the tokens
     assert(update_tally_map(receiver, property, nValue, BALANCE));
 
-    /**
-     * As long as the feature to disable the side effects of "granting tokens"
-     * is not activated, "granting tokens" can trigger crowdsale participations.
-     */
-    if (!IsFeatureActivated(FEATURE_GRANTEFFECTS, block)) {
-        // Is there an active crowdsale running from this recepient?
-        logicHelper_CrowdsaleParticipation();
-    }
-
-    NotifyTotalTokensChanged(property, block);
+    // NotifyTotalTokensChanged(property, block);
 
     return 0;
 }
@@ -2266,7 +1342,7 @@ int CMPTransaction::logicMath_RevokeTokens()
     assert(update_tally_map(sender, property, -nValue, BALANCE));
     assert(_my_sps->updateSP(property, sp));
 
-    NotifyTotalTokensChanged(property, block);
+    // NotifyTotalTokensChanged(property, block);
 
     return 0;
 }
@@ -2309,19 +1385,9 @@ int CMPTransaction::logicMath_ChangeIssuer()
         return (PKT_ERROR_TOKENS -43);
     }
 
-    if (NULL != getCrowd(sender)) {
-        PrintToLog("%s(): rejected: sender %s has an active crowdsale\n", __func__, sender);
-        return (PKT_ERROR_TOKENS -39);
-    }
-
     if (receiver.empty()) {
         PrintToLog("%s(): rejected: receiver is empty\n", __func__);
         return (PKT_ERROR_TOKENS -45);
-    }
-
-    if (NULL != getCrowd(receiver)) {
-        PrintToLog("%s(): rejected: receiver %s has an active crowdsale\n", __func__, receiver);
-        return (PKT_ERROR_TOKENS -46);
     }
 
     // ------------------------------------------
@@ -2564,77 +1630,6 @@ int CMPTransaction::logicMath_UnfreezeTokens()
     return 0;
 }
 
-/** Tx 1025 */
-int CMPTransaction::logicMath_CreateDenomination()
-{
-    uint256 blockHash;
-    {
-        LOCK(cs_main);
-
-        CBlockIndex* pindex = chainActive[block];
-        if (pindex == NULL) {
-            PrintToLog("%s(): ERROR: block %d not in the active chain\n", __func__, block);
-            return (PKT_ERROR_TOKENS -20);
-        }
-        blockHash = pindex->GetBlockHash();
-    }
-
-    if (!IsTransactionTypeAllowed(block, property, type, version)) {
-        PrintToLog("%s(): rejected: type %d or version %d not permitted for property %d at block %d\n",
-                __func__,
-                type,
-                version,
-                property,
-                block);
-        return PKT_ERROR_TOKENS - 22;
-    }
-
-    if (!nValue || nValue > MAX_INT_8_BYTES) {
-        PrintToLog("%s(): rejected: value out of range or zero: %d", __func__, nValue);
-        return PKT_ERROR_TOKENS - 23;
-    }
-
-    if (!IsPropertyIdValid(property)) {
-        PrintToLog("%s(): rejected: property %d does not exist\n", __func__, property);
-        return PKT_ERROR_TOKENS - 24;
-    }
-
-    CMPSPInfo::Entry sp;
-    assert(_my_sps->getSP(property, sp));
-
-    if (sender != sp.issuer) {
-        PrintToLog("%s(): rejected: sender %s is not issuer of property %d [issuer=%s]\n", __func__, sender, property, sp.issuer);
-        return PKT_ERROR_TOKENS - 43;
-    }
-
-    if (sp.sigmaStatus != SigmaStatus::HardEnabled && sp.sigmaStatus != SigmaStatus::SoftEnabled) {
-        PrintToLog("%s(): rejected: sigma is not enabled for property %d\n", __func__, property);
-        return PKT_ERROR_TOKENS - 901;
-    }
-
-    if (sp.denominations.size() >= MAX_DENOMINATIONS) {
-        PrintToLog("%s(): rejected: no more space for new denomination for property %d\n", __func__, property);
-        return PKT_ERROR_TOKENS - 902;
-    }
-
-    if (std::find(sp.denominations.begin(), sp.denominations.end(), nValue) != sp.denominations.end()) {
-        PrintToLog(
-            "%s(): rejected: denomination with value %s is already exists for property %d\n",
-            __func__,
-            FormatMP(property, nValue),
-            property
-        );
-        return PKT_ERROR_TOKENS - 903;
-    }
-
-    sp.denominations.push_back(nValue);
-    sp.update_block = blockHash;
-
-    assert(_my_sps->updateSP(property, sp));
-
-    return 0;
-}
-
 /** Tx 65533 */
 int CMPTransaction::logicMath_Deactivation()
 {
@@ -2665,14 +1660,6 @@ int CMPTransaction::logicMath_Deactivation()
     if (!DeactivationSuccess) {
         PrintToLog("%s(): DeactivateFeature failed\n", __func__);
         return (PKT_ERROR -54);
-    }
-
-    // successful deactivation - did we deactivate the MetaDEx?  If so close out all trades
-    if (feature_id == FEATURE_METADEX) {
-        MetaDEx_SHUTDOWN();
-    }
-    if (feature_id == FEATURE_TRADEALLPAIRS) {
-        MetaDEx_SHUTDOWN_ALLPAIR();
     }
 
     return 0;
@@ -2739,7 +1726,7 @@ int CMPTransaction::logicMath_Alert()
 
     if (alert_type == ALERT_CLIENT_VERSION_EXPIRY && ELYSIUM_VERSION < alert_expiry) {
         // regular alert keys CANNOT be used to force a client upgrade on mainnet - at least 3 signatures from board/devs are required
-        if (sender == "48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd" || isNonMainNet()) {
+        if (sender == "a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U" || isNonMainNet()) {
             std::string msgText = "Client upgrade is required!  Shutting down due to unsupported consensus state!";
             PrintToLog(msgText);
             if (!GetBoolArg("-overrideforcedshutdown", false)) {

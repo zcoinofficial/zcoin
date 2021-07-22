@@ -9,6 +9,7 @@ class CTransaction;
 #include "elysium.h"
 #include "packetencoder.h"
 #include "sp.h"
+#include "lelantusprimitives.h"
 
 #include <boost/iterator/transform_iterator.hpp>
 #include <boost/optional.hpp>
@@ -33,18 +34,9 @@ enum TransactionType {
     ELYSIUM_TYPE_SAVINGS_COMPROMISED         = 11,
     ELYSIUM_TYPE_RATELIMITED_MARK            = 12,
     ELYSIUM_TYPE_AUTOMATIC_DISPENSARY        = 15,
-    ELYSIUM_TYPE_TRADE_OFFER                 = 20,
-    ELYSIUM_TYPE_ACCEPT_OFFER_BTC            = 22,
-    ELYSIUM_TYPE_METADEX_TRADE               = 25,
-    ELYSIUM_TYPE_METADEX_CANCEL_PRICE        = 26,
-    ELYSIUM_TYPE_METADEX_CANCEL_PAIR         = 27,
-    ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM    = 28,
     ELYSIUM_TYPE_NOTIFICATION                = 31,
-    ELYSIUM_TYPE_OFFER_ACCEPT_A_BET          = 40,
     ELYSIUM_TYPE_CREATE_PROPERTY_FIXED       = 50,
     ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE    = 51,
-    ELYSIUM_TYPE_PROMOTE_PROPERTY            = 52,
-    ELYSIUM_TYPE_CLOSE_CROWDSALE             = 53,
     ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL      = 54,
     ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS       = 55,
     ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS      = 56,
@@ -53,9 +45,9 @@ enum TransactionType {
     ELYSIUM_TYPE_DISABLE_FREEZING            = 72,
     ELYSIUM_TYPE_FREEZE_PROPERTY_TOKENS      = 185,
     ELYSIUM_TYPE_UNFREEZE_PROPERTY_TOKENS    = 186,
-    ELYSIUM_TYPE_SIMPLE_SPEND                = 1024,
-    ELYSIUM_TYPE_CREATE_DENOMINATION         = 1025,
-    ELYSIUM_TYPE_SIMPLE_MINT                 = 1026,
+    ELYSIUM_TYPE_LELANTUS_MINT               = 1027,
+    ELYSIUM_TYPE_LELANTUS_JOINSPLIT          = 1028,
+    ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS      = 1029,
     ELYSIUM_MESSAGE_TYPE_DEACTIVATION        = 65533,
     ELYSIUM_MESSAGE_TYPE_ACTIVATION          = 65534,
     ELYSIUM_MESSAGE_TYPE_ALERT               = 65535
@@ -67,12 +59,9 @@ enum TransactionType {
  */
 class CMPTransaction
 {
-    friend class CMPMetaDEx;
-    friend class CMPOffer;
-
 private:
     uint256 txid;
-    int block;
+    int block = -1;
     int64_t blockTime;  // internally nTime is still an "unsigned int"
     unsigned int tx_idx;  // tx # within the block, 0-based
     uint64_t tx_fee_paid;
@@ -110,20 +99,6 @@ private:
     char name[SP_STRING_FIELD_LEN];
     char url[SP_STRING_FIELD_LEN];
     char data[SP_STRING_FIELD_LEN];
-    uint64_t deadline;
-    unsigned char early_bird;
-    unsigned char percentage;
-
-    // MetaDEx
-    unsigned int desired_property;
-    uint64_t desired_value;
-    unsigned char action; // depreciated
-
-    // TradeOffer
-    uint64_t amount_desired;
-    unsigned char blocktimelimit;
-    uint64_t min_fee;
-    unsigned char subaction;
 
     // Alert
     uint16_t alert_type;
@@ -135,17 +110,16 @@ private:
     uint32_t activation_block;
     uint32_t min_client_version;
 
-    // Sigma
-    elysium::SigmaStatus sigmaStatus;
-    std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>> mints;
-    uint8_t denomination;
-    uint32_t group;
-    uint16_t groupSize;
-    std::unique_ptr<secp_primitives::Scalar> serial;
-    std::unique_ptr<elysium::SigmaProof> spend;
+    // Lelantus
+    elysium::LelantusStatus lelantusStatus;
+    boost::optional<lelantus::PublicCoin> lelantusMint;
+    uint64_t lelantusMintValue;
+    boost::optional<elysium::MintEntryId> lelantusId;
+    std::vector<unsigned char> lelantusSchnorrProof;
 
-    CPubKey ecdsaPubkey;
-    elysium::ECDSASignature ecdsaSignature;
+    boost::optional<lelantus::JoinSplit> lelantusJoinSplit;
+    uint64_t lelantusSpendAmount;
+    boost::optional<elysium::JoinSplitMint> lelantusJoinSplitMint;
 
     // Indicates whether the transaction can be used to execute logic
     bool rpcOnly;
@@ -160,15 +134,7 @@ private:
     bool interpret_SimpleSend();
     bool interpret_SendToOwners();
     bool interpret_SendAll();
-    bool interpret_TradeOffer();
-    bool interpret_MetaDExTrade();
-    bool interpret_MetaDExCancelPrice();
-    bool interpret_MetaDExCancelPair();
-    bool interpret_MetaDExCancelEcosystem();
-    bool interpret_AcceptOfferBTC();
     bool interpret_CreatePropertyFixed();
-    bool interpret_CreatePropertyVariable();
-    bool interpret_CloseCrowdsale();
     bool interpret_CreatePropertyManaged();
     bool interpret_GrantTokens();
     bool interpret_RevokeTokens();
@@ -177,9 +143,9 @@ private:
     bool interpret_DisableFreezing();
     bool interpret_FreezeTokens();
     bool interpret_UnfreezeTokens();
-    bool interpret_CreateDenomination();
-    bool interpret_SimpleMint();
-    bool interpret_SimpleSpend();
+    bool interpret_LelantusMint();
+    bool interpret_LelantusJoinSplit();
+    bool interpret_ChangeLelantusStatus();
     bool interpret_Activation();
     bool interpret_Deactivation();
     bool interpret_Alert();
@@ -190,15 +156,7 @@ private:
     int logicMath_SimpleSend();
     int logicMath_SendToOwners();
     int logicMath_SendAll();
-    int logicMath_TradeOffer();
-    int logicMath_AcceptOffer_BTC();
-    int logicMath_MetaDExTrade();
-    int logicMath_MetaDExCancelPrice();
-    int logicMath_MetaDExCancelPair();
-    int logicMath_MetaDExCancelEcosystem();
     int logicMath_CreatePropertyFixed();
-    int logicMath_CreatePropertyVariable();
-    int logicMath_CloseCrowdsale();
     int logicMath_CreatePropertyManaged();
     int logicMath_GrantTokens();
     int logicMath_RevokeTokens();
@@ -207,33 +165,12 @@ private:
     int logicMath_DisableFreezing();
     int logicMath_FreezeTokens();
     int logicMath_UnfreezeTokens();
-    int logicMath_CreateDenomination();
     int logicMath_Activation();
     int logicMath_Deactivation();
     int logicMath_Alert();
 
-    /**
-     * Logic helpers
-     */
-    int logicHelper_CrowdsaleParticipation();
 
 public:
-    //! DEx and MetaDEx action values
-    enum ActionTypes
-    {
-        INVALID = 0,
-
-        // DEx
-        NEW = 1,
-        UPDATE = 2,
-        CANCEL = 3,
-
-        // MetaDEx
-        ADD                 = 1,
-        CANCEL_AT_PRICE     = 2,
-        CANCEL_ALL_FOR_PAIR = 3,
-        CANCEL_EVERYTHING   = 4,
-    };
 
     uint256 getHash() const { return txid; }
     int getBlock() const { return block; }
@@ -256,9 +193,6 @@ public:
     std::string getSPName() const { return name; }
     std::string getSPUrl() const { return url; }
     std::string getSPData() const { return data; }
-    int64_t getDeadline() const { return deadline; }
-    uint8_t getEarlyBirdBonus() const { return early_bird; }
-    uint8_t getIssuerBonus() const { return percentage; }
     bool isRpcOnly() const { return rpcOnly; }
     const boost::optional<elysium::PacketClass>& getPacketClass() const { return packetClass; }
     uint16_t getAlertType() const { return alert_type; }
@@ -270,28 +204,16 @@ public:
     unsigned int getIndexInBlock() const { return tx_idx; }
     uint32_t getDistributionProperty() const { return distribution_property; }
 
-    /** Sigma */
-    std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>> const & getMints() const { return mints; }
-    uint8_t getDenomination() const { return denomination; }
-    uint32_t getGroup() const { return group; }
-    uint16_t getGroupSize() const { return groupSize; }
-    const secp_primitives::Scalar *getSerial() const { return serial.get(); }
-    const elysium::SigmaProof *getSpend() const { return spend.get(); }
-    const CPubKey &getECDSAPublicKey() const { return ecdsaPubkey; }
-    const elysium::ECDSASignature &getECDSASignature() const { return ecdsaSignature; }
-    CAmount getMintAmount() const {
-        auto itr = boost::make_transform_iterator(mints.begin(), [] (std::pair<uint8_t, elysium::SigmaPublicKey> const &m) -> uint8_t {
-            return m.first;
-        });
+    /** Lelantus */
+    lelantus::PublicCoin getLelantusMint() const { return lelantusMint.get(); }
+    uint64_t getLelantusMintValue() const { return lelantusMintValue; }
+    elysium::MintEntryId getLelantusMintId() const { return lelantusId.get(); }
+    std::vector<unsigned char> getLelantusSchnorrProof() const { return lelantusSchnorrProof; }
+    elysium::LelantusStatus getLelantusStatus() const { return lelantusStatus; }
 
-        return SumDenominationsValue(getProperty(), itr, itr + mints.size());
-    }
-
-    CAmount getSpendAmount() const {
-        std::array<uint8_t, 1> denoms = {getDenomination()};
-        return elysium::SumDenominationsValue(getProperty(), denoms.begin(), denoms.end());
-    }
-
+    lelantus::JoinSplit getLelantusJoinSplit() const { return lelantusJoinSplit.get(); };
+    uint64_t getLelantusSpendAmount() const { return lelantusSpendAmount; }
+    boost::optional<elysium::JoinSplitMint> getLelantusJoinSplitMint() const { return lelantusJoinSplitMint; }
 
     /** Creates a new CMPTransaction object. */
     CMPTransaction()
@@ -325,16 +247,6 @@ public:
         memset(&name, 0, sizeof(name));
         memset(&url, 0, sizeof(url));
         memset(&data, 0, sizeof(data));
-        deadline = 0;
-        early_bird = 0;
-        percentage = 0;
-        desired_property = 0;
-        desired_value = 0;
-        action = 0;
-        amount_desired = 0;
-        blocktimelimit = 0;
-        min_fee = 0;
-        subaction = 0;
         alert_type = 0;
         alert_expiry = 0;
         memset(&alert_text, 0, sizeof(alert_text));
@@ -343,7 +255,7 @@ public:
         activation_block = 0;
         min_client_version = 0;
         distribution_property = 0;
-        sigmaStatus = elysium::SigmaStatus::SoftDisabled;
+        lelantusStatus = elysium::LelantusStatus::SoftDisabled;
     }
 
     /** Sets the given values. */

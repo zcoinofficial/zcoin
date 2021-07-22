@@ -14,7 +14,7 @@ enum MPRPCErrorCode
 
     //ClassAgnosticWalletTXBuilder(
     MP_INPUTS_INVALID =             -212,
-    MP_SIGMA_INPUTS_INVALID =       -214,
+    MP_LELANTUS_INPUTS_INVALID =    -217,
     MP_ENCODING_ERROR =             -250,
     MP_REDEMP_ILLEGAL =             -233,
     MP_REDEMP_BAD_KEYID =           -220,
@@ -25,13 +25,13 @@ enum MPRPCErrorCode
     MP_ERR_INPUTSELECT_FAIL =       -206,
     MP_ERR_CREATE_TX =              -211,
     MP_ERR_CREATE_SIGMA_TX =        -215,
+    MP_ERR_CREATE_LELANTUS_TX =     -216,
     MP_ERR_COMMIT_TX =              -213,
 
     //gettransaction_MP, listtransactions_MP
     MP_TX_NOT_FOUND =               -3331,  // No information available about transaction. (GetTransaction failed)
     MP_TX_UNCONFIRMED =             -3332,  // Unconfirmed transactions are not supported. (blockHash is 0)
     MP_BLOCK_NOT_IN_CHAIN =         -3333,  // Transaction not part of the active chain.   (pBlockIndex is NULL)
-    MP_CROWDSALE_WITHOUT_PROPERTY = -3334,  // Potential database corruption: "Crowdsale Purchase" without valid property identifier.
     MP_INVALID_TX_IN_DB_FOUND     = -3335,  // Potential database corruption: Invalid transaction found.
     MP_TX_IS_NOT_ELYSIUM_PROTOCOL = -3336,  // Not a Elysium Protocol transaction.
 };
@@ -53,8 +53,8 @@ inline std::string error_str(int ec) {
       case MP_INPUTS_INVALID:
           ec_str = "Error choosing inputs for the send transaction";
           break;
-      case MP_SIGMA_INPUTS_INVALID:
-          ec_str = "Error no sigma mints to pay as transaction fee";
+      case MP_LELANTUS_INPUTS_INVALID:
+          ec_str = "Error no lelantus mints to pay as transaction fee";
           break;
       case MP_ENCODING_ERROR:
           ec_str = "Packet too large";
@@ -86,10 +86,12 @@ inline std::string error_str(int ec) {
       case MP_ERR_CREATE_SIGMA_TX:
           ec_str = "Error creating sigma spend transaction (wallet may be locked or sigma fees may not be sufficient)";
           break;
+      case MP_ERR_CREATE_LELANTUS_TX:
+          ec_str = "Error creating lelantus spend transaction (wallet may be locked or lelantus fees may not be sufficient)";
+          break;
       case MP_ERR_COMMIT_TX:
           ec_str = "Error committing transaction";
           break;
-
       case PKT_ERROR -1:
           ec_str = "Attempt to execute logic in RPC mode";
           break;
@@ -108,7 +110,6 @@ inline std::string error_str(int ec) {
       case PKT_ERROR -54:
           ec_str = "Activation failed";
           break;
-
       case PKT_ERROR -100:
           ec_str = "Transaction is not a supported type";
           break;
@@ -118,7 +119,6 @@ inline std::string error_str(int ec) {
       case PKT_ERROR -999:
           ec_str = "Failed to determine subaction";
           break;
-
       case PKT_ERROR_SEND -22:
           ec_str = "Transaction type or version not permitted";
           break;
@@ -131,7 +131,6 @@ inline std::string error_str(int ec) {
       case PKT_ERROR_SEND -25:
           ec_str = "Sender has insufficient balance";
           break;
-
       case PKT_ERROR_STO -22:
           ec_str = "Transaction type or version not permitted";
           break;
@@ -153,7 +152,6 @@ inline std::string error_str(int ec) {
       case PKT_ERROR_STO -28:
           ec_str = "Sender has insufficient balance to pay for amount + fee";
           break;
-
       case PKT_ERROR_SEND_ALL -22:
           ec_str = "Transaction type or version not permitted";
           break;
@@ -162,107 +160,6 @@ inline std::string error_str(int ec) {
           break;
       case PKT_ERROR_SEND_ALL -55:
           ec_str = "Sender has no tokens to send";
-          break;
-
-      case PKT_ERROR_TRADEOFFER -22:
-          ec_str = "Transaction type or version not permitted";
-          break;
-      case PKT_ERROR_TRADEOFFER -23:
-          ec_str = "Value out of range or zero";
-          break;
-      case PKT_ERROR_TRADEOFFER -47:
-          ec_str = "Property for sale must be ELYSIUM or TELYSIUM";
-          break;
-      case PKT_ERROR_TRADEOFFER -49:
-          ec_str = "Sender has no active sell offer for the property";
-          break;
-      case PKT_ERROR_TRADEOFFER -48:
-          ec_str = "Sender already has an active sell offer for the property";
-          break;
-
-      case DEX_ERROR_SELLOFFER -101:
-          ec_str = "Value out of range or zero";
-          break;
-      case DEX_ERROR_SELLOFFER -10:
-          ec_str = "Sender already has an active sell offer for the property";
-          break;
-      case DEX_ERROR_SELLOFFER -25:
-          ec_str = "Sender has insufficient balance";
-          break;
-      case DEX_ERROR_SELLOFFER -11:
-          ec_str = "Sender has no active sell offer for the property";
-          break;
-      case DEX_ERROR_SELLOFFER -12:
-          ec_str = "Sender has no active sell offer for the property";
-          break;
-
-      case DEX_ERROR_ACCEPT -15:
-          ec_str = "No matching sell offer for accept order found";
-          break;
-      case DEX_ERROR_ACCEPT -20:
-          ec_str = "Cannot locate accept to destroy";
-          break;
-      case DEX_ERROR_ACCEPT -22:
-          ec_str = "Transaction type or version not permitted";
-          break;
-      case DEX_ERROR_ACCEPT -23:
-          ec_str = "Value out of range or zero";
-          break;
-      case DEX_ERROR_ACCEPT -205:
-          ec_str = "An accept from the sender to the recipient already exists";
-          break;
-      case DEX_ERROR_ACCEPT -105:
-          ec_str = "Transaction fee too small";
-          break;
-
-      case PKT_ERROR_METADEX -21:
-          ec_str = "Ecosystem is invalid";
-          break;
-      case PKT_ERROR_METADEX -22:
-          ec_str = "Transaction type or version not permitted";
-          break;
-      case PKT_ERROR_METADEX -25:
-          ec_str = "Sender has insufficient balance";
-          break;
-      case PKT_ERROR_METADEX -29:
-          ec_str = "Property for sale and desired property are not be equal";
-          break;
-      case PKT_ERROR_METADEX -30:
-          ec_str = "Property for sale and desired property are not in the same ecosystem";
-          break;
-      case PKT_ERROR_METADEX -31:
-          ec_str = "Property for sale does not exist";
-          break;
-      case PKT_ERROR_METADEX -32:
-          ec_str = "Property desired does not exist";
-          break;
-      case PKT_ERROR_METADEX -33:
-          ec_str = "Amount for sale out of range or zero";
-          break;
-      case PKT_ERROR_METADEX -34:
-          ec_str = "Amount desired out of range or zero";
-          break;
-      case PKT_ERROR_METADEX -35:
-          ec_str = "One side of the trade must be OMNI or TOMNI";
-          break;
-
-      case METADEX_ERROR -1:
-          ec_str = "Unknown MetaDEx (Add) error";
-          break;
-      case METADEX_ERROR -20:
-          ec_str = "Unknown MetaDEx (Cancel Price) error";
-          break;
-      case METADEX_ERROR -30:
-          ec_str = "Unknown MetaDEx (Cancel Pair) error";
-          break;
-      case METADEX_ERROR -40:
-          ec_str = "Unknown MetaDEx (Cancel Everything) error";
-          break;
-      case METADEX_ERROR -66:
-          ec_str = "Trade has a unit price of zero";
-          break;
-      case METADEX_ERROR -70:
-          ec_str = "Trade already exists";
           break;
 
       case PKT_ERROR_SP -20:
@@ -349,7 +246,7 @@ inline std::string error_str(int ec) {
           break;
 
       default:
-          ec_str = "Unknown error";
+          ec_str = "Error: " + std::to_string(ec);
   }
 
   return ec_str;

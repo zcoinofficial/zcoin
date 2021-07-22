@@ -1,3 +1,4 @@
+#include <chainparams.h>
 #include "joinsplit.h"
 #include "lelantus_prover.h"
 #include "lelantus_verifier.h"
@@ -119,6 +120,19 @@ bool JoinSplit::Verify(
     return Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHash, challenge, fSkipVerification);
 }
 
+#ifdef ENABLE_ELYSIUM
+bool JoinSplit::VerifyElysium(
+        const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+        const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
+        const std::vector<PublicCoin>& Cout,
+        uint64_t Vout,
+        const uint256& txHash) const {
+    Scalar challenge;
+    bool fSkipVerification = false;
+    return Verify(anonymity_sets, anonymity_set_hashes, Cout, Vout, txHash, challenge, fSkipVerification, INT64_MAX);
+}
+#endif
+
 bool JoinSplit::Verify(
         const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
         const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
@@ -126,7 +140,8 @@ bool JoinSplit::Verify(
         uint64_t Vout,
         const uint256& txHash,
         Scalar& challenge,
-        bool fSkipVerification ) const {
+        bool fSkipVerification,
+        boost::optional<int64_t> nMaxValueLelantusSpendPerTransaction) const {
     std::map<uint32_t, uint256> groupBlockHashes;
 
     for(const auto& idAndHash : coinGroupIdAndBlockHash) {
@@ -181,7 +196,7 @@ bool JoinSplit::Verify(
 
     // Now verify lelantus proof
     LelantusVerifier verifier(params, version);
-    return verifier.verify(anonymity_sets, anonymity_set_hashes, serialNumbers, ecdsaPubkeys, groupIds, uint64_t(0),Vout, fee, Cout, lelantusProof, qkSchnorrProof, challenge, fSkipVerification);
+    return verifier.verify(anonymity_sets, anonymity_set_hashes, serialNumbers, ecdsaPubkeys, groupIds, uint64_t(0),Vout, fee, Cout, lelantusProof, qkSchnorrProof, challenge, fSkipVerification, nMaxValueLelantusSpendPerTransaction);
 }
 
 

@@ -86,6 +86,7 @@ void CheckLiveActivations(int blockHeight)
         if (liveActivation.activationBlock > blockHeight) {
             continue;
         }
+		
         if (ELYSIUM_VERSION < liveActivation.minClientVersion) {
             std::string msgText = strprintf("Shutting down due to unsupported feature activation (%d: %s)", liveActivation.featureId, liveActivation.featureName);
             PrintToLog(msgText);
@@ -154,7 +155,7 @@ bool CheckActivationAuthorization(const std::string& sender)
       "16oDZYCspsczfgKXVj3xyvsxH21NpEj94F" // Adam Chamely - adam@exodus.foundation - Project maintainer, developer
     ],
     */
-    whitelisted.insert("48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd");
+    whitelisted.insert("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U");
 
     // Testnet / Regtest
     // use -elysiumactivationallowsender for testing
@@ -205,7 +206,7 @@ bool CheckDeactivationAuthorization(const std::string& sender)
       "16oDZYCspsczfgKXVj3xyvsxH21NpEj94F" // Adam Chamely - adam@exodus.foundation - Project maintainer, developer
     ],
     */
-    whitelisted.insert("48UM25xTXCxPRwnv36YjjJNaAK4whKR8Rd");
+    whitelisted.insert("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U");
 
     // Testnet / Regtest
     // use -elysiumactivationallowsender for testing

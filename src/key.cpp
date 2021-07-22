@@ -253,7 +253,9 @@ bool CExtKey::Derive(CExtKey &out, unsigned int _nChild) const {
 void CExtKey::SetMaster(const unsigned char *seed, unsigned int nSeedLen) {
     static const unsigned char hashkey[] = {'B','i','t','c','o','i','n',' ','s','e','e','d'};
     std::vector<unsigned char, secure_allocator<unsigned char>> vout(64);
-    CHMAC_SHA512(hashkey, sizeof(hashkey)).Write(seed, nSeedLen).Finalize(vout.data());
+    CHMAC_SHA512 hash(hashkey, sizeof(hashkey));
+    if (seed) hash.Write(seed, nSeedLen);
+    hash.Finalize(vout.data());
     key.Set(&vout[0], &vout[32], true);
     memcpy(chaincode.begin(), &vout[32], 32);
     nDepth = 0;

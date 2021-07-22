@@ -4,7 +4,6 @@
 #include "elysium/elysium.h"
 #include "elysium/sp.h"
 #include "elysium/walletcache.h"
-#include "elysium/mdex.h"
 
 #include "amount.h"
 #include "validation.h"

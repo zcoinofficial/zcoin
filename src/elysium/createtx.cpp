@@ -1,23 +1,10 @@
 #include "createtx.h"
-
 #include "packetencoder.h"
 #include "script.h"
-
-#include "../base58.h"
 #include "../coins.h"
-#include "../pubkey.h"
-#include "../uint256.h"
-
-#include "../primitives/transaction.h"
-
-#include "../script/script.h"
-#include "../script/standard.h"
-
-#include <string>
 #include <utility>
 #include <vector>
-
-#include <inttypes.h>
+#include <cinttypes>
 
 /** Creates a new previous output entry. */
 PrevTxsEntry::PrevTxsEntry(const uint256& txid, uint32_t nOut, int64_t nValue, const CScript& scriptPubKey)
@@ -25,19 +12,25 @@ PrevTxsEntry::PrevTxsEntry(const uint256& txid, uint32_t nOut, int64_t nValue, c
 {
 }
 
+/** Returns the created transaction. */
+CMutableTransaction ElysiumTxBuilder::build()
+{
+    return transaction;
+}
+
 /** Creates a new transaction builder. */
-TxBuilder::TxBuilder()
+ElysiumTxBuilder::ElysiumTxBuilder()
 {
 }
 
 /** Creates a new transaction builder to extend a transaction. */
-TxBuilder::TxBuilder(const CMutableTransaction& transactionIn)
-  : transaction(transactionIn)
+ElysiumTxBuilder::ElysiumTxBuilder(const CMutableTransaction& transactionIn)
+        : transaction(transactionIn)
 {
 }
 
 /** Adds an outpoint as input to the transaction. */
-TxBuilder& TxBuilder::addInput(const COutPoint& outPoint)
+ElysiumTxBuilder& ElysiumTxBuilder::addInput(const COutPoint& outPoint)
 {
     CTxIn txIn(outPoint);
     transaction.vin.push_back(txIn);
@@ -46,15 +39,54 @@ TxBuilder& TxBuilder::addInput(const COutPoint& outPoint)
 }
 
 /** Adds a transaction input to the transaction. */
-TxBuilder& TxBuilder::addInput(const uint256& txid, uint32_t nOut)
+ElysiumTxBuilder& ElysiumTxBuilder::addInput(const uint256& txid, uint32_t nOut)
 {
     COutPoint outPoint(txid, nOut);
 
     return addInput(outPoint);
 }
 
+/** Adds a collection of previous outputs as inputs to the transaction. */
+ElysiumTxBuilder& ElysiumTxBuilder::addInputs(const std::vector<PrevTxsEntry>& prevTxs)
+{
+    for (std::vector<PrevTxsEntry>::const_iterator it = prevTxs.begin();
+            it != prevTxs.end(); ++it) {
+        addInput(it->outPoint);
+    }
+
+    return *this;
+}
+
+/** Adds an output for the reference address. */
+ElysiumTxBuilder& ElysiumTxBuilder::addReference(const std::string& destination, int64_t value)
+{
+    CBitcoinAddress addr(destination);
+    CScript scriptPubKey = GetScriptForDestination(addr.Get());
+
+    int64_t minValue = GetDustThreshold(scriptPubKey);
+    value = std::max(minValue, value);
+
+    return ElysiumTxBuilder::addOutput(scriptPubKey, value);
+}
+
+/** Embeds a payload with class C (op-return) encoding. */
+ElysiumTxBuilder& ElysiumTxBuilder::addOpReturn(const std::vector<unsigned char>& data)
+{
+    transaction.vout.push_back(elysium::EncodeClassC(data.begin(), data.end()));
+    return *this;
+}
+
+/** Adds an output for change. */
+ElysiumTxBuilder& ElysiumTxBuilder::addChange(const std::string& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position)
+{
+    CBitcoinAddress addr(destination);
+
+    return ElysiumTxBuilder::addChange(addr.Get(), view, txFee, position);
+}
+
+
 /** Adds an output to the transaction. */
-TxBuilder& TxBuilder::addOutput(const CScript& scriptPubKey, int64_t value)
+ElysiumTxBuilder& ElysiumTxBuilder::addOutput(const CScript& scriptPubKey, int64_t value)
 {
     CTxOut txOutput(value, scriptPubKey);
     transaction.vout.push_back(txOutput);
@@ -63,10 +95,10 @@ TxBuilder& TxBuilder::addOutput(const CScript& scriptPubKey, int64_t value)
 }
 
 /** Adds a collection of outputs to the transaction. */
-TxBuilder& TxBuilder::addOutputs(const std::vector<std::pair<CScript, int64_t> >& txOutputs)
+ElysiumTxBuilder& ElysiumTxBuilder::addOutputs(const std::vector<std::pair<CScript, int64_t> >& txOutputs)
 {
     for (std::vector<std::pair<CScript, int64_t> >::const_iterator it = txOutputs.begin();
-            it != txOutputs.end(); ++it) {
+         it != txOutputs.end(); ++it) {
         addOutput(it->first, it->second);
     }
 
@@ -74,7 +106,7 @@ TxBuilder& TxBuilder::addOutputs(const std::vector<std::pair<CScript, int64_t> >
 }
 
 /** Adds an output for change. */
-TxBuilder& TxBuilder::addChange(const CTxDestination& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position)
+ElysiumTxBuilder& ElysiumTxBuilder::addChange(const CTxDestination& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position)
 {
     CTransaction tx(transaction);
 
@@ -102,68 +134,6 @@ TxBuilder& TxBuilder::addChange(const CTxDestination& destination, const CCoinsV
     return *this;
 }
 
-/** Returns the created transaction. */
-CMutableTransaction TxBuilder::build()
-{
-    return transaction;
-}
-
-/** Creates a new Elysium transaction builder. */
-ElysiumTxBuilder::ElysiumTxBuilder()
-  : TxBuilder()
-{
-}
-
-/** Creates a new Elysium transaction builder to extend a transaction. */
-ElysiumTxBuilder::ElysiumTxBuilder(const CMutableTransaction& transactionIn)
-  : TxBuilder(transactionIn)
-{
-}
-
-/** Adds a collection of previous outputs as inputs to the transaction. */
-ElysiumTxBuilder& ElysiumTxBuilder::addInputs(const std::vector<PrevTxsEntry>& prevTxs)
-{
-    for (std::vector<PrevTxsEntry>::const_iterator it = prevTxs.begin();
-            it != prevTxs.end(); ++it) {
-        addInput(it->outPoint);
-    }
-
-    return *this;
-}
-
-/** Adds an output for the reference address. */
-ElysiumTxBuilder& ElysiumTxBuilder::addReference(const std::string& destination, int64_t value)
-{
-    CBitcoinAddress addr(destination);
-    CScript scriptPubKey = GetScriptForDestination(addr.Get());
-
-    int64_t minValue = GetDustThreshold(scriptPubKey);
-    value = std::max(minValue, value);
-
-    return (ElysiumTxBuilder&) TxBuilder::addOutput(scriptPubKey, value);
-}
-
-/** Embeds a payload with class C (op-return) encoding. */
-ElysiumTxBuilder& ElysiumTxBuilder::addOpReturn(const std::vector<unsigned char>& data)
-{
-    transaction.vout.push_back(elysium::EncodeClassC(data.begin(), data.end()));
-    return *this;
-}
-
-/** Embeds a payload with class B (bare-multisig) encoding. */
-ElysiumTxBuilder& ElysiumTxBuilder::addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey)
-{
-    elysium::EncodeClassB(seed, pubKey, data.begin(), data.end(), std::back_inserter(transaction.vout));
-    return *this;
-}
-
-/** Adds an output for change. */
-ElysiumTxBuilder& ElysiumTxBuilder::addChange(const std::string& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position)
-{
-    CBitcoinAddress addr(destination);
-
-    return (ElysiumTxBuilder&) TxBuilder::addChange(addr.Get(), view, txFee, position);
-}
 
 /** Adds previous transaction outputs to coins view. */
 void InputsToView(const std::vector<PrevTxsEntry>& prevTxs, CCoinsViewCache& view)

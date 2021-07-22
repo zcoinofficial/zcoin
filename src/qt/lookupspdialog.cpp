@@ -334,7 +334,7 @@ void LookupSPDialog::updateDisplayedProperty()
     bool manualIssuance = sp.manual;
 
     // sigma
-    ui->sigmaStatusLabel->setText(QString::fromStdString(std::to_string(sp.sigmaStatus)));
+    ui->sigmaStatusLabel->setText(QString::fromStdString(std::to_string(sp.lelantusStatus)));
     ui->denominationTable->setRowCount(0);
 
     for (size_t i = 0; i < sp.denominations.size(); i++) {
@@ -347,64 +347,22 @@ void LookupSPDialog::updateDisplayedProperty()
         addDenominationRow(i, value);
     }
 
-    if ((!fixedIssuance) && (!manualIssuance) && (propertyId > 2))
-    {
-        ui->issuanceTypeLabel->setText("Crowdsale");
-        // obtain crowdinfo
-        bool active = isCrowdsaleActive(propertyId);
-        int64_t deadline = sp.deadline;
-        uint8_t earlyBonus = sp.early_bird;
-        uint8_t percentToIssuer = sp.percentage;
-        int64_t tokensPerUnit = sp.num_tokens;
-        int64_t propertyIdDesired = sp.property_desired;
-        QDateTime qDeadline;
-        qDeadline.setTime_t(deadline);
-        string desiredText = getPropertyName(propertyIdDesired).c_str();
-        if(desiredText.size()>22) desiredText=desiredText.substr(0,22)+"...";
-        string spId = strprintf("%d", propertyIdDesired);
-        desiredText += " (#" + spId + ")";
-        string tokensPerUnitText;
-        if (divisible) { tokensPerUnitText = FormatDivisibleMP(tokensPerUnit); } else { tokensPerUnitText = FormatIndivisibleMP(tokensPerUnit); }
-        if (active) { ui->activeLabel->setText("Yes"); } else { ui->activeLabel->setText("No"); }
-        // populate crowdinfo
-        ui->desiredLabel->setText(QString::fromStdString(desiredText));
-        ui->tokensPerUnitLabel->setText(QString::fromStdString(tokensPerUnitText));
-        ui->deadlineLabel->setText(qDeadline.toString(Qt::SystemLocaleShortDate));
-        ui->bonusLabel->setText(QString::fromStdString(FormatIndivisibleMP((int64_t)earlyBonus) + "%"));
-        ui->issuerPercLabel->setText(QString::fromStdString(FormatIndivisibleMP((int64_t)percentToIssuer) + "%"));
-        // show crowdinfo
-        ui->desired->setVisible(true);
-        ui->tokensperunit->setVisible(true);
-        ui->deadline->setVisible(true);
-        ui->bonus->setVisible(true);
-        ui->issuerperc->setVisible(true);
-        ui->desiredLabel->setVisible(true);
-        ui->tokensPerUnitLabel->setVisible(true);
-        ui->deadlineLabel->setVisible(true);
-        ui->bonusLabel->setVisible(true);
-        ui->issuerPercLabel->setVisible(true);
-        ui->activeLabel->setVisible(true);
-        ui->active->setText("Active:");
-    }
-    else
-    {
-        ui->issuanceTypeLabel->setText("Elysium");
-        if (fixedIssuance) ui->issuanceTypeLabel->setText("Fixed");
-        if (manualIssuance) ui->issuanceTypeLabel->setText("Manual");
-        // hide crowdinfo
-        ui->desired->setVisible(false);
-        ui->tokensperunit->setVisible(false);
-        ui->deadline->setVisible(false);
-        ui->bonus->setVisible(false);
-        ui->issuerperc->setVisible(false);
-        ui->desiredLabel->setVisible(false);
-        ui->tokensPerUnitLabel->setVisible(false);
-        ui->deadlineLabel->setVisible(false);
-        ui->bonusLabel->setVisible(false);
-        ui->issuerPercLabel->setVisible(false);
-        ui->activeLabel->setVisible(false);
-        ui->active->setText("Not applicable.");
-    }
+    ui->issuanceTypeLabel->setText("Elysium");
+    if (fixedIssuance) ui->issuanceTypeLabel->setText("Fixed");
+    if (manualIssuance) ui->issuanceTypeLabel->setText("Manual");
+    // hide crowdinfo
+    ui->desired->setVisible(false);
+    ui->tokensperunit->setVisible(false);
+    ui->deadline->setVisible(false);
+    ui->bonus->setVisible(false);
+    ui->issuerperc->setVisible(false);
+    ui->desiredLabel->setVisible(false);
+    ui->tokensPerUnitLabel->setVisible(false);
+    ui->deadlineLabel->setVisible(false);
+    ui->bonusLabel->setVisible(false);
+    ui->issuerPercLabel->setVisible(false);
+    ui->activeLabel->setVisible(false);
+    ui->active->setText("Not applicable.");
     ui->topFrame->setVisible(true);
     ui->leftFrame->setVisible(true);
     ui->rightFrame->setVisible(true);

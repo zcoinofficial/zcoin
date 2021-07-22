@@ -127,9 +127,6 @@ QT_FORMS_UI = \
   qt/forms/lookupspdialog.ui \
   qt/forms/lookuptxdialog.ui \
   qt/forms/txhistorydialog.ui \
-  qt/forms/metadexcanceldialog.ui \
-  qt/forms/metadexdialog.ui \
-  qt/forms/tradehistorydialog.ui \
   qt/forms/elyassetsdialog.ui \
   qt/forms/lelantusdialog.ui \
   qt/forms/createpcodedialog.ui
@@ -197,9 +194,6 @@ QT_MOC_CPP = \
   qt/moc_lookuptxdialog.cpp \
   qt/moc_txhistorydialog.cpp \
   qt/moc_elyassetsdialog.cpp \
-  qt/moc_metadexdialog.cpp \
-  qt/moc_metadexcanceldialog.cpp \
-  qt/moc_tradehistorydialog.cpp \
   qt/moc_lelantusmodel.cpp \
   qt/moc_lelantusdialog.cpp \
   qt/moc_lelantuscoincontroldialog.cpp \
@@ -297,9 +291,6 @@ BITCOIN_QT_H = \
   qt/lookuptxdialog.h \
   qt/txhistorydialog.h \
   qt/elyassetsdialog.h \
-  qt/metadexdialog.h \
-  qt/metadexcanceldialog.h \
-  qt/tradehistorydialog.h \
   qt/sendmpdialog.h \
   qt/elysium_qtutils.h \
   qt/lelantusmodel.h \
@@ -466,10 +457,7 @@ FIRO_QT_ELYSIUM_CPP = \
   qt/lookupaddressdialog.cpp \
   qt/lookupspdialog.cpp \
   qt/lookuptxdialog.cpp \
-  qt/metadexcanceldialog.cpp \
-  qt/metadexdialog.cpp \
   qt/sendmpdialog.cpp \
-  qt/tradehistorydialog.cpp \
   qt/txhistorydialog.cpp
 
 BITCOIN_QT_CPP = $(BITCOIN_QT_BASE_CPP)

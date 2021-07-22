@@ -2,6 +2,7 @@
 .project
 .cproject
 .vscode
+.idea
 
 *.tar.gz
 
@@ -12,7 +13,6 @@ src/firo-cli
 src/firo-tx
 src/test/test_bitcoin_fuzzy
 src/test/test_bitcoin
-src/test/test_bitcoin_fuzzy
 src/qt/test/test_bitcoin-qt
 
 # autoreconf
@@ -97,6 +97,13 @@ qrc_*.cpp
 .DS_Store
 build
 
+# Xcode
+.settings
+*.xcodeproj
+
+# CLion
+cmake-build-debug
+
 #lcov
 *.gcno
 *.gcda
@@ -134,3 +141,8 @@ firo.creator
 firo.creator.user
 firo.files
 firo.includes
+
+# VS
+.vs
+/.vs
+.vs/*

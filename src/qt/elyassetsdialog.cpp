@@ -231,9 +231,7 @@ void ElyAssetsDialog::PopulateBalances(unsigned int propertyId)
             // obtain the balances for the address directly form tally
             int64_t available = tally.getMoney(propertyId, BALANCE);
             available += tally.getMoney(propertyId, PENDING);
-            int64_t reserved = tally.getMoney(propertyId, SELLOFFER_RESERVE);
-            reserved += tally.getMoney(propertyId, ACCEPT_RESERVE);
-            reserved += tally.getMoney(propertyId, METADEX_RESERVE);
+			int64_t reserved = 0;
 
             // format the balances
             string reservedStr, availableStr;

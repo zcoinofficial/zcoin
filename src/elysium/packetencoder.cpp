@@ -22,35 +22,15 @@
 
 namespace elysium {
 
-// could not change to "elysium" because of previous exodus transactions
-const std::array<unsigned char, 6> magic = { 0x65, 0x78, 0x6f, 0x64, 0x75, 0x73 }; // "exodus"
-
-// PacketKeyGenerator Implementation.
-
-PacketKeyGenerator::PacketKeyGenerator(const std::string& seed) : seed(seed)
-{
-}
-
-std::array<unsigned char, 32> PacketKeyGenerator::Next()
-{
-    CSHA256 hasher;
-    std::array<unsigned char, CSHA256::OUTPUT_SIZE> hash;
-
-    hasher.Write(reinterpret_cast<const unsigned char *>(seed.data()), seed.size());
-    hasher.Finalize(hash.data());
-
-    seed = HexStr(hash.begin(), hash.end());
-    std::transform(seed.begin(), seed.end(), seed.begin(), ::toupper);
-
-    return hash;
-}
+const std::array<unsigned char, 7> magic = { 0x65, 0x6c, 0x79, 0x73, 0x69, 0x75, 0x6d }; // "elysium"
 
 // Functions.
 
+
 const CBitcoinAddress& GetSystemAddress()
 {
-    static const CBitcoinAddress mainAddress("ZzzcQkPmXomcTcSVGsDHsGBCvxg67joaj5");
-    static const CBitcoinAddress testAddress("TTFL4sPFHP22Dzqbw9mPQJEjdG7Wf1ajjZ");
+    static const CBitcoinAddress mainAddress("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U");
+    static const CBitcoinAddress testAddress("TKPbcG9QVLSfNvrtowQ7GzEEXq4zPjkej6");
 
     return isNonMainNet() ? testAddress : mainAddress;
 }
@@ -58,9 +38,6 @@ const CBitcoinAddress& GetSystemAddress()
 boost::optional<PacketClass> DeterminePacketClass(const CTransaction& tx, int height)
 {
     // Inspect all outputs.
-    auto& sysAddr = GetSystemAddress();
-    bool hasSysAddr = false;
-    bool hasMultisig = false;
     bool hasOpReturn = false;
 
     for (auto& output : tx.vout) {
@@ -74,15 +51,7 @@ boost::optional<PacketClass> DeterminePacketClass(const CTransaction& tx, int he
             continue;
         }
 
-        if (type == TX_PUBKEYHASH) {
-            CTxDestination dest;
-
-            if (ExtractDestination(output.scriptPubKey, dest) && CBitcoinAddress(dest) == sysAddr) {
-                hasSysAddr = true;
-            }
-        } else if (type == TX_MULTISIG) {
-            hasMultisig = true;
-        } else if (type == TX_NULL_DATA) {
+        if (type == TX_NULL_DATA) {
             // Check if the first push is prefixed with magic bytes.
             std::vector<std::vector<unsigned char>> pushes;
 
@@ -99,10 +68,6 @@ boost::optional<PacketClass> DeterminePacketClass(const CTransaction& tx, int he
         return PacketClass::C;
     }
 
-    if (hasSysAddr && hasMultisig) {
-        return PacketClass::B;
-    }
-
     return boost::none;
 }
 
@@ -115,8 +80,6 @@ using namespace elysium;
 string to_string(PacketClass c)
 {
     switch (c) {
-    case PacketClass::B:
-        return "B";
     case PacketClass::C:
         return "C";
     default:

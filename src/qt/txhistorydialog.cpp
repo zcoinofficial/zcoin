@@ -234,12 +234,8 @@ int TXHistoryDialog::PopulateHistoryMap()
             htxo.amount = "-" + FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
             bool fundsMoved = true;
             htxo.txType = shrinkTxType(pending.type, &fundsMoved);
-            if (pending.type == ELYSIUM_TYPE_METADEX_CANCEL_PRICE || pending.type == ELYSIUM_TYPE_METADEX_CANCEL_PAIR ||
-                pending.type == ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM || pending.type == ELYSIUM_TYPE_SEND_ALL) {
-                htxo.amount = "N/A";
-            }
 
-            if (pending.type == ELYSIUM_TYPE_SIMPLE_SPEND) {
+            if (pending.type == ELYSIUM_TYPE_LELANTUS_JOINSPLIT) {
                 if (pending.dest && IsMyAddress(pending.dest.get())) {
                     htxo.amount = FormatShortMP(pending.prop, pending.amount) + getTokenLabel(pending.prop);
                 }
@@ -307,14 +303,16 @@ int TXHistoryDialog::PopulateHistoryMap()
         uint32_t type = 0;
         uint64_t amountNew = 0;
         htxo.valid = getValidMPTX(txHash, &tmpBlock, &type, &amountNew);
-        if (htxo.valid && type == ELYSIUM_TYPE_TRADE_OFFER && amountNew > 0) amount = amountNew; // override for when amount for sale has been auto-adjusted
 
-        if (htxo.valid && type == ELYSIUM_TYPE_SIMPLE_SPEND) { // override amount for spend
-            amount = mp_obj.getSpendAmount();
+        // Ignore invalid transactions so as to not confuse the user.
+        if (!htxo.valid) continue;
+
+        if (type == ELYSIUM_TYPE_LELANTUS_JOINSPLIT) { // override amount for spend
+            amount = mp_obj.getLelantusSpendAmount();
         }
 
-        if (htxo.valid && type == ELYSIUM_TYPE_SIMPLE_MINT) { // override amount for mint
-            amount = mp_obj.getMintAmount();
+        if (type == ELYSIUM_TYPE_LELANTUS_MINT) { // override amount for mint
+            amount = mp_obj.getLelantusMintValue();
         }
 
         std::string displayAmount = FormatShortMP(mp_obj.getProperty(), amount) + getTokenLabel(mp_obj.getProperty());
@@ -326,8 +324,8 @@ int TXHistoryDialog::PopulateHistoryMap()
         if (!IsMyAddress(mp_obj.getSender())) htxo.address = mp_obj.getReceiver();
         if (htxo.fundsMoved && IsMyAddress(mp_obj.getSender())) displayAmount = "-" + displayAmount;
 
-        if (type == ELYSIUM_TYPE_SIMPLE_SPEND) {
-            htxo.address = "Spend";
+        if (type == ELYSIUM_TYPE_LELANTUS_MINT) {
+            htxo.address = "Mint";
             if (htxo.fundsMoved && !IsMyAddress(mp_obj.getReceiver())) {
                 displayAmount = "-" + displayAmount;
             }
@@ -346,9 +344,7 @@ int TXHistoryDialog::PopulateHistoryMap()
         // - Unchanged balance sigma transactions
         // - Cancels transactions
         // - Unknown transactions
-        if (type == ELYSIUM_TYPE_METADEX_CANCEL_PRICE || type == ELYSIUM_TYPE_METADEX_CANCEL_PAIR ||
-            type == ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM || type == ELYSIUM_TYPE_SEND_ALL ||
-            type == ELYSIUM_TYPE_CREATE_DENOMINATION || htxo.txType == "Unknown") {
+        if (type == ELYSIUM_TYPE_SEND_ALL || htxo.txType == "Unknown") {
             displayAmount = "N/A";
         }
 
@@ -539,24 +535,15 @@ std::string TXHistoryDialog::shrinkTxType(int txType, bool *fundsMoved)
         case ELYSIUM_TYPE_SAVINGS_COMPROMISED: ; displayType = "Lock Savings"; break;
         case ELYSIUM_TYPE_RATELIMITED_MARK: displayType = "Rate Limit"; break;
         case ELYSIUM_TYPE_AUTOMATIC_DISPENSARY: displayType = "Auto Dispense"; break;
-        case ELYSIUM_TYPE_TRADE_OFFER: displayType = "DEx Trade"; *fundsMoved = false; break;
-        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC: displayType = "DEx Accept"; *fundsMoved = false; break;
-        case ELYSIUM_TYPE_METADEX_TRADE: displayType = "MetaDEx Trade"; *fundsMoved = false; break;
-        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE:
-        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR:
-        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM:
-            displayType = "MetaDEx Cancel"; *fundsMoved = false; break;
         case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED: displayType = "Create Property"; break;
         case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE: displayType = "Create Property"; *fundsMoved = false; break;
-        case ELYSIUM_TYPE_PROMOTE_PROPERTY: displayType = "Promo Property"; break;
-        case ELYSIUM_TYPE_CLOSE_CROWDSALE: displayType = "Close Crowdsale"; *fundsMoved = false; break;
         case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: displayType = "Create Property"; *fundsMoved = false; break;
         case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS: displayType = "Grant Tokens"; break;
         case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS: displayType = "Revoke Tokens"; break;
         case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS: displayType = "Change Issuer"; *fundsMoved = false; break;
-        case ELYSIUM_TYPE_SIMPLE_SPEND: displayType = "Sigma Spend"; break;
-        case ELYSIUM_TYPE_CREATE_DENOMINATION: displayType = "Create Sigma Denomination"; *fundsMoved = false; break;
-        case ELYSIUM_TYPE_SIMPLE_MINT: displayType = "Sigma Mint"; break;
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT: displayType = "Joinsplit"; break;
+        case ELYSIUM_TYPE_LELANTUS_MINT: displayType = "Mint"; break;
+
     }
     return displayType;
 }

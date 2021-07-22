@@ -9,8 +9,6 @@ class CTransaction;
 #include "log.h"
 #include "persistence.h"
 #include "tally.h"
-#include "sigma.h"
-#include "sigmadb.h"
 
 #include "../base58.h"
 #include "../sync.h"
@@ -46,6 +44,7 @@ constexpr size_t ELYSIUM_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 // Elysium Transaction (Packet) Version
 #define MP_TX_PKT_V0  0
 #define MP_TX_PKT_V1  1
+#define MP_TX_PKT_V2  2
 
 #define MIN_PAYLOAD_SIZE     5
 
@@ -58,34 +57,23 @@ constexpr size_t ELYSIUM_MAX_SIMPLE_MINTS = std::numeric_limits<uint8_t>::max();
 
 enum FILETYPES {
   FILETYPE_BALANCES = 0,
-  FILETYPE_OFFERS,
-  FILETYPE_ACCEPTS,
   FILETYPE_GLOBALS,
-  FILETYPE_CROWDSALES,
-  FILETYPE_MDEXORDERS,
   NUM_FILETYPES
 };
 
 #define PKT_RETURNED_OBJECT    (1000)
 
 #define PKT_ERROR             ( -9000)
-#define DEX_ERROR_SELLOFFER   (-10000)
-#define DEX_ERROR_ACCEPT      (-20000)
-#define DEX_ERROR_PAYMENT     (-30000)
 // Smart Properties
 #define PKT_ERROR_SP          (-40000)
-#define PKT_ERROR_CROWD       (-45000)
 // Send To Owners
 #define PKT_ERROR_STO         (-50000)
 #define PKT_ERROR_SEND        (-60000)
-#define PKT_ERROR_TRADEOFFER  (-70000)
-#define PKT_ERROR_METADEX     (-80000)
-#define METADEX_ERROR         (-81000)
 #define PKT_ERROR_TOKENS      (-82000)
 #define PKT_ERROR_SEND_ALL    (-83000)
-#define PKT_ERROR_SIGMA       (-84000)
+#define PKT_ERROR_LELANTUS    (-85000)
 
-#define ELYSIUM_PROPERTY_XZC   0
+#define ELYSIUM_PROPERTY_FIRO   0
 #define ELYSIUM_PROPERTY_ELYSIUM   1
 #define ELYSIUM_PROPERTY_TELYSIUM  2
 
@@ -155,34 +143,6 @@ public:
     void recordSTOReceive(std::string, const uint256&, int, unsigned int, uint64_t);
 };
 
-/** LevelDB based storage for the trade history. Trades are listed with key "txid1+txid2".
- */
-class CMPTradeList : public CDBBase
-{
-public:
-    CMPTradeList(const boost::filesystem::path& path, bool fWipe)
-    {
-        leveldb::Status status = Open(path, fWipe);
-        PrintToLog("Loading trades database: %s\n", status.ToString());
-    }
-
-    virtual ~CMPTradeList()
-    {
-        if (elysium_debug_persistence) PrintToLog("CMPTradeList closed\n");
-    }
-
-    void recordMatchedTrade(const uint256 txid1, const uint256 txid2, string address1, string address2, unsigned int prop1, unsigned int prop2, uint64_t amount1, uint64_t amount2, int blockNum, int64_t fee);
-    void recordNewTrade(const uint256& txid, const std::string& address, uint32_t propertyIdForSale, uint32_t propertyIdDesired, int blockNum, int blockIndex);
-    int deleteAboveBlock(int blockNum);
-    bool exists(const uint256 &txid);
-    void printStats();
-    void printAll();
-    bool getMatchingTrades(const uint256& txid, uint32_t propertyId, UniValue& tradeArray, int64_t& totalSold, int64_t& totalBought);
-    void getTradesForAddress(std::string address, std::vector<uint256>& vecTransactions, uint32_t propertyIdFilter = 0);
-    void getTradesForPair(uint32_t propertyIdSideA, uint32_t propertyIdSideB, UniValue& response, uint64_t count);
-    int getMPTradeCountTotal();
-};
-
 /** LevelDB based storage for transactions, with txid as key and validity bit, and other data as value.
  */
 class CMPTxList : public CDBBase
@@ -200,16 +160,12 @@ public:
     }
 
     void recordTX(const uint256 &txid, bool fValid, int nBlock, unsigned int type, uint64_t nValue);
-    void recordPaymentTX(const uint256 &txid, bool fValid, int nBlock, unsigned int vout, unsigned int propertyId, uint64_t nValue, string buyer, string seller);
-    void recordMetaDExCancelTX(const uint256 &txidMaster, const uint256 &txidSub, bool fValid, int nBlock, unsigned int propertyId, uint64_t nValue);
-    /** Records a "send all" sub record. */
+	/** Records a "send all" sub record. */
     void recordSendAllSubRecord(const uint256& txid, int subRecordNumber, uint32_t propertyId, int64_t nvalue);
 
     string getKeyValue(string key);
-    uint256 findMetaDExCancel(const uint256 txid);
     /** Returns the number of sub records. */
     int getNumberOfSubRecords(const uint256& txid);
-    int getNumberOfMetaDExCancels(const uint256 txid);
     bool getPurchaseDetails(const uint256 txid, int purchaseNumber, string *buyer, string *seller, uint64_t *vout, uint64_t *propertyId, uint64_t *nValue);
     /** Retrieves details about a "send all" record. */
     bool getSendAllDetails(const uint256& txid, int subSend, uint32_t& propertyId, int64_t& amount);
@@ -270,7 +226,6 @@ namespace elysium
 {
 extern std::unordered_map<std::string, CMPTally> mp_tally_map;
 extern CMPTxList *p_txlistdb;
-extern CMPTradeList *t_tradelistdb;
 extern CMPSTOList *s_stolistdb;
 extern CElysiumTransactionDB *p_ElysiumTXDB;
 
@@ -278,7 +233,6 @@ extern CElysiumTransactionDB *p_ElysiumTXDB;
 extern CCoinsView viewDummy;
 extern CCoinsViewCache view;
 //! Guards coins view cache
-extern CCriticalSection cs_tx_cache;
 
 std::string strMPProperty(uint32_t propertyId);
 
@@ -288,7 +242,7 @@ std::string FormatIndivisibleMP(int64_t n);
 
 enum class InputMode {
     NORMAL,
-    SIGMA
+    LELANTUS
 };
 
 int WalletTxBuilder(const std::string& senderAddress, const std::string& receiverAddress, const std::string& redemptionAddress,

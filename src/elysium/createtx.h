@@ -28,103 +28,6 @@ struct PrevTxsEntry
     CTxOut txOut;
 };
 
-// TODO:
-// CMutableTransaction tx = ElysiumTxBuilder().addInput(input).addOpReturn(data).build();
-// ... currently doesn't work, because addInput() returns a reference to a TxBuilder,
-// but not to an ElysiumTxBuilder.
-
-/**
- * Builder to create transactions.
- *
- * The TxBuilder class can be used to build transactions by adding outputs to a
- * newly created, or an already existing, transaction. The builder can also be
- * used to add change outputs.
- *
- * Example usage:
- *
- * @code
- *   // build a transaction with two outputs and change:
- *   CMutableTransaction tx = TxBuilder()
- *           .addInput(outPoint)
- *           .addOutput(scriptPubKeyA, nValueA)
- *           .addOutput(scriptPubKeyB, nValueB)
- *           .addChange(destinationForChange, viewContainingInputs, nFee)
- *           .build();
- * @endcode
- */
-class TxBuilder
-{
-public:
-    /**
-     * Creates a new transaction builder.
-     */
-    TxBuilder();
-
-    /**
-     * Creates a new transaction builder to extend a transaction.
-     *
-     * @param transactionIn The transaction used to build upon
-     */
-    TxBuilder(const CMutableTransaction& transactionIn);
-
-    /**
-     * Adds an outpoint as input to the transaction.
-     *
-     * @param outPoint The transaction outpoint to add
-     */
-    TxBuilder& addInput(const COutPoint& outPoint);
-
-    /**
-     * Adds a transaction input to the transaction.
-     *
-     * @param txid The hash of the input transaction
-     * @param nOut The index of the transaction output used as input
-     */
-    TxBuilder& addInput(const uint256& txid, uint32_t nOut);
-
-    /**
-     * Adds an output to the transaction.
-     *
-     * @param scriptPubKey The output script
-     * @param value        The output value
-     */
-    TxBuilder& addOutput(const CScript& scriptPubKey, int64_t value);
-
-    /**
-     * Adds a collection of outputs to the transaction.
-     *
-     * @param txOutputs The outputs to add
-     */
-    TxBuilder& addOutputs(const std::vector<std::pair<CScript, int64_t> >& txOutputs);
-
-    /**
-     * Adds an output for change.
-     *
-     * Optionally a position can be provided, where the change output should be
-     * inserted, starting with 0. If the number of outputs is smaller than the
-     * position, then the change output is added to the end.
-     *
-     * If the change amount would be considered as dust, then no change output
-     * is added.
-     *
-     * @param destination The destination of the change
-     * @param view        The coins view, which contains the inputs being spent
-     * @param txFee       The desired transaction fees
-     * @param position    The position of the change output (default: last position)
-     */
-    TxBuilder& addChange(const CTxDestination& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position = 999999);
-
-    /**
-     * Returns the created transaction.
-     *
-     * @return The created transaction
-     */
-    CMutableTransaction build();
-
-protected:
-    CMutableTransaction transaction;
-};
-
 /**
  * Builder to create Elysium transactions.
  *
@@ -144,20 +47,74 @@ protected:
  *           .build();
  * @endcode
  */
-class ElysiumTxBuilder: public TxBuilder
+class ElysiumTxBuilder
 {
 public:
     /**
-     * Creates a new Elysium transaction builder.
+     * Creates a new transaction builder.
      */
     ElysiumTxBuilder();
 
     /**
-     * Creates a new Elysium transaction builder to extend a transaction.
+     * Creates a new transaction builder to extend a transaction.
      *
      * @param transactionIn The transaction used to build upon
      */
     ElysiumTxBuilder(const CMutableTransaction& transactionIn);
+
+    /**
+     * Adds an outpoint as input to the transaction.
+     *
+     * @param outPoint The transaction outpoint to add
+     */
+    ElysiumTxBuilder& addInput(const COutPoint& outPoint);
+
+    /**
+     * Adds a transaction input to the transaction.
+     *
+     * @param txid The hash of the input transaction
+     * @param nOut The index of the transaction output used as input
+     */
+    ElysiumTxBuilder& addInput(const uint256& txid, uint32_t nOut);
+
+    /**
+     * Adds an output to the transaction.
+     *
+     * @param scriptPubKey The output script
+     * @param value        The output value
+     */
+    ElysiumTxBuilder& addOutput(const CScript& scriptPubKey, int64_t value);
+
+    /**
+     * Adds a collection of outputs to the transaction.
+     *
+     * @param txOutputs The outputs to add
+     */
+    ElysiumTxBuilder& addOutputs(const std::vector<std::pair<CScript, int64_t> >& txOutputs);
+
+    /**
+     * Adds an output for change.
+     *
+     * Optionally a position can be provided, where the change output should be
+     * inserted, starting with 0. If the number of outputs is smaller than the
+     * position, then the change output is added to the end.
+     *
+     * If the change amount would be considered as dust, then no change output
+     * is added.
+     *
+     * @param destination The destination of the change
+     * @param view        The coins view, which contains the inputs being spent
+     * @param txFee       The desired transaction fees
+     * @param position    The position of the change output (default: last position)
+     */
+    ElysiumTxBuilder& addChange(const CTxDestination& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position = 999999);
+
+    /**
+     * Returns the created transaction.
+     *
+     * @return The created transaction
+     */
+    CMutableTransaction build();
 
     /**
      * Adds a collection of previous outputs as inputs to the transaction.
@@ -186,17 +143,6 @@ public:
     ElysiumTxBuilder& addOpReturn(const std::vector<unsigned char>& data);
 
     /**
-     * Embeds a payload with class B (bare-multisig) encoding.
-     *
-     * If the data encoding fails, then the transaction is not modified.
-     *
-     * @param data   The payload to embed
-     * @param seed   The address of the sender, used as seed for obfuscation
-     * @param pubKey A public key that may be used to redeem the multisig dust
-     */
-    ElysiumTxBuilder& addMultisig(const std::vector<unsigned char>& data, const std::string& seed, const CPubKey& pubKey);
-
-    /**
      * Adds an output for change.
      *
      * Optionally a position can be provided, where the change output should be
@@ -214,6 +160,9 @@ public:
      * @param position    The position of the change output (default: first position)
      */
     ElysiumTxBuilder& addChange(const std::string& destination, const CCoinsViewCache& view, int64_t txFee, uint32_t position = 0);
+
+protected:
+    CMutableTransaction transaction;
 };
 
 /**

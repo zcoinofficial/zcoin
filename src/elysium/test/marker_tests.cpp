@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(class_no_marker)
     }
 }
 
-BOOST_AUTO_TEST_CASE(class_class_b)
+/* BOOST_AUTO_TEST_CASE(class_class_b)
 {
     {
         int nBlock = 0;
@@ -136,7 +136,7 @@ BOOST_AUTO_TEST_CASE(class_class_b)
         CTransaction tx(mutableTx);
         BOOST_CHECK_EQUAL(DeterminePacketClass(tx, nBlock), PacketClass::B);
     }
-}
+}*/
 
 BOOST_AUTO_TEST_CASE(class_class_c)
 {

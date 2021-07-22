@@ -197,6 +197,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_getgrants", 0 },
 	{ "elysium_getbalance", 1 },
 	{ "elysium_getproperty", 0 },
+	{ "elysium_listlelantusmints", 0 },
+	{ "elysium_listlelantusmints", 1 },
 	{ "elysium_listtransactions", 1 },
 	{ "elysium_listtransactions", 2 },
 	{ "elysium_listtransactions", 3 },
@@ -208,9 +210,6 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_listblocktransactions", 0 },
 	{ "elysium_getorderbook", 0 },
 	{ "elysium_getorderbook", 1 },
-	{ "elysium_getseedblocks", 0 },
-	{ "elysium_getseedblocks", 1 },
-	{ "elysium_getmetadexhash", 0 },
 	{ "elysium_getfeecache", 0 },
 	{ "elysium_getfeeshare", 1 },
 	{ "elysium_getfeetrigger", 0 },
@@ -270,6 +269,8 @@ static const CRPCConvertParam vRPCConvertParams[] =
 	{ "elysium_sendmint", 3 },
 	{ "elysium_sendspend", 1 },
 	{ "elysium_sendspend", 2 },
+    { "elysium_sendlelantusmint", 1 },
+    { "elysium_sendlelantusspend", 1 },
 
 	/* Elysium - raw transaction calls */
 	{ "elysium_decodetransaction", 1 },

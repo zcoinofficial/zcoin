@@ -96,12 +96,6 @@ BOOST_AUTO_TEST_CASE(output_scripthash_testnet)
     SelectParams(CBaseChainParams::MAIN);
 }
 
-BOOST_AUTO_TEST_CASE(output_multisig)
-{
-    BOOST_CHECK(IsAllowedOutputType(TX_MULTISIG, 0));
-    BOOST_CHECK(IsAllowedOutputType(TX_MULTISIG, std::numeric_limits<int>::max()));
-}
-
 BOOST_AUTO_TEST_CASE(output_nulldata)
 {
     int OP_RETURN_BLOCK = ConsensusParams().NULLDATA_BLOCK;

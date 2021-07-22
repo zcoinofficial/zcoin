@@ -6,9 +6,9 @@
 
 #include "elysium/rpctxobject.h"
 
-#include "elysium/dex.h"
+
 #include "elysium/errors.h"
-#include "elysium/mdex.h"
+
 #include "elysium/elysium.h"
 #include "elysium/pending.h"
 #include "elysium/rpctxobject.h"
@@ -82,31 +82,6 @@ int populateRPCTransactionObject(const CTransaction& tx, const uint256& blockHas
 
     const uint256& txid = tx.GetHash();
 
-    // DEx FIRO payment needs special handling since it's not actually an Elysium message - handle and return
-    if (parseRC > 0) {
-        if (confirmations <= 0) {
-            // only confirmed DEx payments are currently supported
-            return MP_TX_UNCONFIRMED;
-        }
-        std::string tmpBuyer, tmpSeller;
-        uint64_t tmpVout, tmpNValue, tmpPropertyId;
-        {
-            LOCK(cs_main);
-            p_txlistdb->getPurchaseDetails(txid, 1, &tmpBuyer, &tmpSeller, &tmpVout, &tmpPropertyId, &tmpNValue);
-        }
-        UniValue purchases(UniValue::VARR);
-        if (populateRPCDExPurchases(tx, purchases, filterAddress) <= 0) return -1;
-        txobj.push_back(Pair("txid", txid.GetHex()));
-        txobj.push_back(Pair("type", "DEx Purchase"));
-        txobj.push_back(Pair("sendingaddress", tmpBuyer));
-        txobj.push_back(Pair("purchases", purchases));
-        txobj.push_back(Pair("blockhash", blockHash.GetHex()));
-        txobj.push_back(Pair("blocktime", blockTime));
-        txobj.push_back(Pair("block", blockHeight));
-        txobj.push_back(Pair("confirmations", confirmations));
-        return 0;
-    }
-
     // check if we're filtering from listtransactions_MP, and if so whether we have a non-match we want to skip
     if (!filterAddress.empty() && mp_obj.getSender() != filterAddress && mp_obj.getReceiver() != filterAddress) return -1;
 
@@ -167,41 +142,23 @@ void populateRPCTypeInfo(CMPTransaction& mp_obj, UniValue& txobj, uint32_t txTyp
         case ELYSIUM_TYPE_SIMPLE_SEND:
             populateRPCTypeSimpleSend(mp_obj, txobj);
             break;
+        case ELYSIUM_TYPE_LELANTUS_MINT:
+            populateRPCTypeLelantusMint(mp_obj, txobj);
+            break;
+        case ELYSIUM_TYPE_LELANTUS_JOINSPLIT:
+            populateRPCTypeLelantusJoinSplit(mp_obj, txobj);
+            break;
         case ELYSIUM_TYPE_SEND_TO_OWNERS:
             populateRPCTypeSendToOwners(mp_obj, txobj, extendedDetails, extendedDetailsFilter);
             break;
         case ELYSIUM_TYPE_SEND_ALL:
             populateRPCTypeSendAll(mp_obj, txobj, confirmations);
-            break;
-        case ELYSIUM_TYPE_TRADE_OFFER:
-            populateRPCTypeTradeOffer(mp_obj, txobj);
-            break;
-        case ELYSIUM_TYPE_METADEX_TRADE:
-            populateRPCTypeMetaDExTrade(mp_obj, txobj, extendedDetails);
-            break;
-        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE:
-            populateRPCTypeMetaDExCancelPrice(mp_obj, txobj, extendedDetails);
-            break;
-        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR:
-            populateRPCTypeMetaDExCancelPair(mp_obj, txobj, extendedDetails);
-            break;
-        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM:
-            populateRPCTypeMetaDExCancelEcosystem(mp_obj, txobj, extendedDetails);
-            break;
-        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC:
-            populateRPCTypeAcceptOffer(mp_obj, txobj);
-            break;
+            break;        
         case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED:
             populateRPCTypeCreatePropertyFixed(mp_obj, txobj, confirmations);
             break;
-        case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE:
-            populateRPCTypeCreatePropertyVariable(mp_obj, txobj, confirmations);
-            break;
         case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL:
             populateRPCTypeCreatePropertyManual(mp_obj, txobj, confirmations);
-            break;
-        case ELYSIUM_TYPE_CLOSE_CROWDSALE:
-            populateRPCTypeCloseCrowdsale(mp_obj, txobj);
             break;
         case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS:
             populateRPCTypeGrant(mp_obj, txobj);
@@ -225,16 +182,9 @@ bool showRefForTx(uint32_t txType)
     switch (txType) {
         case ELYSIUM_TYPE_SIMPLE_SEND: return true;
         case ELYSIUM_TYPE_SEND_TO_OWNERS: return false;
-        case ELYSIUM_TYPE_TRADE_OFFER: return false;
-        case ELYSIUM_TYPE_METADEX_TRADE: return false;
-        case ELYSIUM_TYPE_METADEX_CANCEL_PRICE: return false;
-        case ELYSIUM_TYPE_METADEX_CANCEL_PAIR: return false;
-        case ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM: return false;
-        case ELYSIUM_TYPE_ACCEPT_OFFER_BTC: return true;
         case ELYSIUM_TYPE_CREATE_PROPERTY_FIXED: return false;
         case ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE: return false;
         case ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL: return false;
-        case ELYSIUM_TYPE_CLOSE_CROWDSALE: return false;
         case ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS: return true;
         case ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS: return false;
         case ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS: return true;
@@ -249,28 +199,30 @@ void populateRPCTypeSimpleSend(CMPTransaction& elysiumObj, UniValue& txobj)
     uint32_t propertyId = elysiumObj.getProperty();
     int64_t crowdPropertyId = 0, crowdTokens = 0, issuerTokens = 0;
     LOCK(cs_main);
-    bool crowdPurchase = isCrowdsalePurchase(elysiumObj.getHash(), elysiumObj.getReceiver(), &crowdPropertyId, &crowdTokens, &issuerTokens);
-    if (crowdPurchase) {
-        CMPSPInfo::Entry sp;
-        if (false == _my_sps->getSP(crowdPropertyId, sp)) {
-            PrintToLog("SP Error: Crowdsale purchase for non-existent property %d in transaction %s", crowdPropertyId, elysiumObj.getHash().GetHex());
-            return;
-        }
-        txobj.push_back(Pair("type", "Crowdsale Purchase"));
-        txobj.push_back(Pair("propertyid", (uint64_t)propertyId));
-        txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
-        txobj.push_back(Pair("amount", FormatMP(propertyId, elysiumObj.getAmount())));
-        txobj.push_back(Pair("purchasedpropertyid", crowdPropertyId));
-        txobj.push_back(Pair("purchasedpropertyname", sp.name));
-        txobj.push_back(Pair("purchasedpropertydivisible", sp.isDivisible()));
-        txobj.push_back(Pair("purchasedtokens", FormatMP(crowdPropertyId, crowdTokens)));
-        txobj.push_back(Pair("issuertokens", FormatMP(crowdPropertyId, issuerTokens)));
-    } else {
-        txobj.push_back(Pair("type", "Simple Send"));
-        txobj.push_back(Pair("propertyid", (uint64_t)propertyId));
-        txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
-        txobj.push_back(Pair("amount", FormatMP(propertyId, elysiumObj.getAmount())));
-    }
+    
+    txobj.push_back(Pair("type", "Simple Send"));
+    txobj.push_back(Pair("propertyid", (uint64_t)propertyId));
+    txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
+    txobj.push_back(Pair("amount", FormatMP(propertyId, elysiumObj.getAmount())));
+    
+}
+
+void populateRPCTypeLelantusMint(CMPTransaction& elysiumObj, UniValue& txobj)
+{
+    uint32_t propertyId = elysiumObj.getProperty();
+    txobj.push_back(Pair("propertyid", (uint64_t)propertyId));
+    txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
+    txobj.push_back(Pair("amount", FormatMP(propertyId, elysiumObj.getLelantusMintValue())));
+
+}
+
+void populateRPCTypeLelantusJoinSplit(CMPTransaction& elysiumObj, UniValue& txobj)
+{
+    uint32_t propertyId = elysiumObj.getProperty();
+    txobj.push_back(Pair("propertyid", (uint64_t)propertyId));
+    txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
+    txobj.push_back(Pair("amount", FormatMP(propertyId, elysiumObj.getLelantusSpendAmount())));
+
 }
 
 void populateRPCTypeSendToOwners(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails, std::string extendedDetailsFilter)
@@ -292,121 +244,6 @@ void populateRPCTypeSendAll(CMPTransaction& elysiumObj, UniValue& txobj, int con
     }
 }
 
-void populateRPCTypeTradeOffer(CMPTransaction& elysiumObj, UniValue& txobj)
-{
-    CMPOffer temp_offer(elysiumObj);
-    uint32_t propertyId = elysiumObj.getProperty();
-    int64_t amountOffered = elysiumObj.getAmount();
-    int64_t amountDesired = temp_offer.getXZCDesiredOriginal();
-    uint8_t sellSubAction = temp_offer.getSubaction();
-
-    {
-        // NOTE: some manipulation of sell_subaction is needed here
-        // TODO: interpretPacket should provide reliable data, cleanup at RPC layer is not cool
-        if (sellSubAction > 3) sellSubAction = 0; // case where subaction byte >3, to have been allowed must be a v0 sell, flip byte to 0
-        if (sellSubAction == 0 && amountOffered > 0) sellSubAction = 1; // case where subaction byte=0, must be a v0 sell, amount > 0 means a new sell
-        if (sellSubAction == 0 && amountOffered == 0) sellSubAction = 3; // case where subaction byte=0. must be a v0 sell, amount of 0 means a cancel
-    }
-    {
-        // Check levelDB to see if the amount for sale has been amended due to a partial purchase
-        // TODO: DEx phase 1 really needs an overhaul to work like MetaDEx with original amounts for sale and amounts remaining etc
-        int tmpblock = 0;
-        unsigned int tmptype = 0;
-        uint64_t amountNew = 0;
-        LOCK(cs_main);
-        bool tmpValid = getValidMPTX(elysiumObj.getHash(), &tmpblock, &tmptype, &amountNew);
-        if (tmpValid && amountNew > 0) {
-            amountDesired = calculateDesiredBTC(amountOffered, amountDesired, amountNew);
-            amountOffered = amountNew;
-        }
-    }
-
-    // Populate
-    txobj.push_back(Pair("propertyid", (uint64_t)propertyId));
-    txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
-    txobj.push_back(Pair("amount", FormatMP(propertyId, amountOffered)));
-    txobj.push_back(Pair("bitcoindesired", FormatDivisibleMP(amountDesired)));
-    txobj.push_back(Pair("timelimit",  temp_offer.getBlockTimeLimit()));
-    txobj.push_back(Pair("feerequired", FormatDivisibleMP(temp_offer.getMinFee())));
-    if (sellSubAction == 1) txobj.push_back(Pair("action", "new"));
-    if (sellSubAction == 2) txobj.push_back(Pair("action", "update"));
-    if (sellSubAction == 3) txobj.push_back(Pair("action", "cancel"));
-}
-
-void populateRPCTypeMetaDExTrade(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails)
-{
-    CMPMetaDEx metaObj(elysiumObj);
-
-    bool propertyIdForSaleIsDivisible = isPropertyDivisible(elysiumObj.getProperty());
-    bool propertyIdDesiredIsDivisible = isPropertyDivisible(metaObj.getDesProperty());
-    std::string unitPriceStr = metaObj.displayFullUnitPrice();
-
-    // populate
-    txobj.push_back(Pair("propertyidforsale", (uint64_t)elysiumObj.getProperty()));
-    txobj.push_back(Pair("propertyidforsaleisdivisible", propertyIdForSaleIsDivisible));
-    txobj.push_back(Pair("amountforsale", FormatMP(elysiumObj.getProperty(), elysiumObj.getAmount())));
-    txobj.push_back(Pair("propertyiddesired", (uint64_t)metaObj.getDesProperty()));
-    txobj.push_back(Pair("propertyiddesiredisdivisible", propertyIdDesiredIsDivisible));
-    txobj.push_back(Pair("amountdesired", FormatMP(metaObj.getDesProperty(), metaObj.getAmountDesired())));
-    txobj.push_back(Pair("unitprice", unitPriceStr));
-    if (extendedDetails) populateRPCExtendedTypeMetaDExTrade(elysiumObj.getHash(), elysiumObj.getProperty(), elysiumObj.getAmount(), txobj);
-}
-
-void populateRPCTypeMetaDExCancelPrice(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails)
-{
-    CMPMetaDEx metaObj(elysiumObj);
-
-    bool propertyIdForSaleIsDivisible = isPropertyDivisible(elysiumObj.getProperty());
-    bool propertyIdDesiredIsDivisible = isPropertyDivisible(metaObj.getDesProperty());
-    std::string unitPriceStr = metaObj.displayFullUnitPrice();
-
-    // populate
-    txobj.push_back(Pair("propertyidforsale", (uint64_t)elysiumObj.getProperty()));
-    txobj.push_back(Pair("propertyidforsaleisdivisible", propertyIdForSaleIsDivisible));
-    txobj.push_back(Pair("amountforsale", FormatMP(elysiumObj.getProperty(), elysiumObj.getAmount())));
-    txobj.push_back(Pair("propertyiddesired", (uint64_t)metaObj.getDesProperty()));
-    txobj.push_back(Pair("propertyiddesiredisdivisible", propertyIdDesiredIsDivisible));
-    txobj.push_back(Pair("amountdesired", FormatMP(metaObj.getDesProperty(), metaObj.getAmountDesired())));
-    txobj.push_back(Pair("unitprice", unitPriceStr));
-    if (extendedDetails) populateRPCExtendedTypeMetaDExCancel(elysiumObj.getHash(), txobj);
-}
-
-void populateRPCTypeMetaDExCancelPair(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails)
-{
-    CMPMetaDEx metaObj(elysiumObj);
-
-    // populate
-    txobj.push_back(Pair("propertyidforsale", (uint64_t)elysiumObj.getProperty()));
-    txobj.push_back(Pair("propertyiddesired", (uint64_t)metaObj.getDesProperty()));
-    if (extendedDetails) populateRPCExtendedTypeMetaDExCancel(elysiumObj.getHash(), txobj);
-}
-
-void populateRPCTypeMetaDExCancelEcosystem(CMPTransaction& elysiumObj, UniValue& txobj, bool extendedDetails)
-{
-    txobj.push_back(Pair("ecosystem", strEcosystem(elysiumObj.getEcosystem())));
-    if (extendedDetails) populateRPCExtendedTypeMetaDExCancel(elysiumObj.getHash(), txobj);
-}
-
-void populateRPCTypeAcceptOffer(CMPTransaction& elysiumObj, UniValue& txobj)
-{
-    uint32_t propertyId = elysiumObj.getProperty();
-    int64_t amount = elysiumObj.getAmount();
-
-    // Check levelDB to see if the amount accepted has been amended due to over accepting amount available
-    // TODO: DEx phase 1 really needs an overhaul to work like MetaDEx with original amounts for sale and amounts remaining etc
-    int tmpblock = 0;
-    uint32_t tmptype = 0;
-    uint64_t amountNew = 0;
-
-    LOCK(cs_main);
-    bool tmpValid = getValidMPTX(elysiumObj.getHash(), &tmpblock, &tmptype, &amountNew);
-    if (tmpValid && amountNew > 0) amount = amountNew;
-
-    txobj.push_back(Pair("propertyid", (uint64_t)propertyId));
-    txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
-    txobj.push_back(Pair("amount", FormatMP(propertyId, amount)));
-}
-
 void populateRPCTypeCreatePropertyFixed(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations)
 {
     LOCK(cs_main);
@@ -426,33 +263,6 @@ void populateRPCTypeCreatePropertyFixed(CMPTransaction& elysiumObj, UniValue& tx
     txobj.push_back(Pair("url", elysiumObj.getSPUrl()));
     std::string strAmount = FormatByType(elysiumObj.getAmount(), elysiumObj.getPropertyType());
     txobj.push_back(Pair("amount", strAmount));
-}
-
-void populateRPCTypeCreatePropertyVariable(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations)
-{
-    LOCK(cs_main);
-    if (confirmations > 0) {
-        uint32_t propertyId = _my_sps->findSPByTX(elysiumObj.getHash());
-        if (propertyId > 0) {
-            txobj.push_back(Pair("propertyid", (uint64_t) propertyId));
-            txobj.push_back(Pair("divisible", isPropertyDivisible(propertyId)));
-        }
-    }
-    txobj.push_back(Pair("propertytype", strPropertyType(elysiumObj.getPropertyType())));
-    txobj.push_back(Pair("ecosystem", strEcosystem(elysiumObj.getEcosystem())));
-    txobj.push_back(Pair("category", elysiumObj.getSPCategory()));
-    txobj.push_back(Pair("subcategory", elysiumObj.getSPSubCategory()));
-    txobj.push_back(Pair("propertyname", elysiumObj.getSPName()));
-    txobj.push_back(Pair("data", elysiumObj.getSPData()));
-    txobj.push_back(Pair("url", elysiumObj.getSPUrl()));
-    txobj.push_back(Pair("propertyiddesired", (uint64_t) elysiumObj.getProperty()));
-    std::string strPerUnit = FormatMP(elysiumObj.getProperty(), elysiumObj.getAmount());
-    txobj.push_back(Pair("tokensperunit", strPerUnit));
-    txobj.push_back(Pair("deadline", elysiumObj.getDeadline()));
-    txobj.push_back(Pair("earlybonus", elysiumObj.getEarlyBirdBonus()));
-    txobj.push_back(Pair("percenttoissuer", elysiumObj.getIssuerBonus()));
-    std::string strAmount = FormatByType(0, elysiumObj.getPropertyType());
-    txobj.push_back(Pair("amount", strAmount)); // crowdsale token creations don't issue tokens with the create tx
 }
 
 void populateRPCTypeCreatePropertyManual(CMPTransaction& elysiumObj, UniValue& txobj, int confirmations)
@@ -526,54 +336,6 @@ void populateRPCExtendedTypeSendToOwners(const uint256 txid, std::string extende
     }
     txobj.push_back(Pair("totalstofee", FormatDivisibleMP(stoFee))); // fee always ELYSIUM so always divisible
     txobj.push_back(Pair("recipients", receiveArray));
-}
-
-void populateRPCExtendedTypeMetaDExTrade(const uint256& txid, uint32_t propertyIdForSale, int64_t amountForSale, UniValue& txobj)
-{
-    UniValue tradeArray(UniValue::VARR);
-    int64_t totalReceived = 0, totalSold = 0;
-    LOCK(cs_main);
-    t_tradelistdb->getMatchingTrades(txid, propertyIdForSale, tradeArray, totalSold, totalReceived);
-    int tradeStatus = MetaDEx_getStatus(txid, propertyIdForSale, amountForSale, totalSold);
-    if (tradeStatus == TRADE_OPEN || tradeStatus == TRADE_OPEN_PART_FILLED) {
-        const CMPMetaDEx* tradeObj = MetaDEx_RetrieveTrade(txid);
-        if (tradeObj != NULL) {
-            txobj.push_back(Pair("amountremaining", FormatMP(tradeObj->getProperty(), tradeObj->getAmountRemaining())));
-            txobj.push_back(Pair("amounttofill", FormatMP(tradeObj->getDesProperty(), tradeObj->getAmountToFill())));
-        }
-    }
-    txobj.push_back(Pair("status", MetaDEx_getStatusText(tradeStatus)));
-    if (tradeStatus == TRADE_CANCELLED || tradeStatus == TRADE_CANCELLED_PART_FILLED) {
-        txobj.push_back(Pair("canceltxid", p_txlistdb->findMetaDExCancel(txid).GetHex()));
-    }
-    txobj.push_back(Pair("matches", tradeArray));
-}
-
-void populateRPCExtendedTypeMetaDExCancel(const uint256& txid, UniValue& txobj)
-{
-    UniValue cancelArray(UniValue::VARR);
-    LOCK(cs_main);
-    int numberOfCancels = p_txlistdb->getNumberOfMetaDExCancels(txid);
-    if (0<numberOfCancels) {
-        for(int refNumber = 1; refNumber <= numberOfCancels; refNumber++) {
-            UniValue cancelTx(UniValue::VOBJ);
-            std::string strValue = p_txlistdb->getKeyValue(txid.ToString() + "-C" + strprintf("%d",refNumber));
-            if (strValue.empty()) continue;
-            std::vector<std::string> vstr;
-            boost::split(vstr, strValue, boost::is_any_of(":"), boost::token_compress_on);
-            if (vstr.size() != 3) {
-                PrintToLog("TXListDB Error - trade cancel number of tokens is not as expected (%s)\n", strValue);
-                continue;
-            }
-            uint32_t propId = boost::lexical_cast<uint32_t>(vstr[1]);
-            int64_t amountUnreserved = boost::lexical_cast<int64_t>(vstr[2]);
-            cancelTx.push_back(Pair("txid", vstr[0]));
-            cancelTx.push_back(Pair("propertyid", (uint64_t) propId));
-            cancelTx.push_back(Pair("amountunreserved", FormatMP(propId, amountUnreserved)));
-            cancelArray.push_back(cancelTx);
-        }
-    }
-    txobj.push_back(Pair("cancelledtransactions", cancelArray));
 }
 
 /* Function to enumerate sub sends for a given txid and add to supplied JSON array

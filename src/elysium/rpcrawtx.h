@@ -6,7 +6,6 @@
 
 UniValue elysium_decodetransaction(const JSONRPCRequest& request);
 UniValue elysium_createrawtx_opreturn(const JSONRPCRequest& request);
-UniValue elysium_createrawtx_multisig(const JSONRPCRequest& request);
 UniValue elysium_createrawtx_input(const JSONRPCRequest& request);
 UniValue elysium_createrawtx_reference(const JSONRPCRequest& request);
 UniValue elysium_createrawtx_change(const JSONRPCRequest& request);

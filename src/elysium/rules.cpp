@@ -37,18 +37,13 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
 
         { ELYSIUM_TYPE_SIMPLE_SEND,               MP_TX_PKT_V0,  false,   ELYSIUM_SEND_BLOCK     },
 
-        { ELYSIUM_TYPE_TRADE_OFFER,               MP_TX_PKT_V0,  false,   ELYSIUM_DEX_BLOCK      },
-        { ELYSIUM_TYPE_TRADE_OFFER,               MP_TX_PKT_V1,  false,   ELYSIUM_DEX_BLOCK      },
-        { ELYSIUM_TYPE_ACCEPT_OFFER_BTC,          MP_TX_PKT_V0,  false,   ELYSIUM_DEX_BLOCK      },
-
         { ELYSIUM_TYPE_CREATE_PROPERTY_FIXED,     MP_TX_PKT_V0,  false,   ELYSIUM_SP_BLOCK       },
-        { ELYSIUM_TYPE_CREATE_PROPERTY_FIXED,     MP_TX_PKT_V1,  false,   SIGMA_FEATURE_BLOCK   },
+        { ELYSIUM_TYPE_CREATE_PROPERTY_FIXED,     MP_TX_PKT_V2,  false,   LELANTUS_FEATURE_BLOCK },
         { ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE,  MP_TX_PKT_V0,  false,   ELYSIUM_SP_BLOCK       },
-        { ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE,  MP_TX_PKT_V1,  false,   ELYSIUM_SP_BLOCK       },
-        { ELYSIUM_TYPE_CLOSE_CROWDSALE,           MP_TX_PKT_V0,  false,   ELYSIUM_SP_BLOCK       },
+        { ELYSIUM_TYPE_CREATE_PROPERTY_VARIABLE,  MP_TX_PKT_V2,  false,   LELANTUS_FEATURE_BLOCK },
 
         { ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL,    MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
-        { ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL,    MP_TX_PKT_V1,  false,   SIGMA_FEATURE_BLOCK   },
+        { ELYSIUM_TYPE_CREATE_PROPERTY_MANUAL,    MP_TX_PKT_V2,  false,   LELANTUS_FEATURE_BLOCK },
         { ELYSIUM_TYPE_GRANT_PROPERTY_TOKENS,     MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
         { ELYSIUM_TYPE_REVOKE_PROPERTY_TOKENS,    MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
         { ELYSIUM_TYPE_CHANGE_ISSUER_ADDRESS,     MP_TX_PKT_V0,  false,   ELYSIUM_MANUALSP_BLOCK },
@@ -60,19 +55,11 @@ std::vector<TransactionRestriction> CConsensusParams::GetRestrictions() const
         { ELYSIUM_TYPE_SEND_TO_OWNERS,            MP_TX_PKT_V0,  false,   ELYSIUM_STO_BLOCK      },
         { ELYSIUM_TYPE_SEND_TO_OWNERS,            MP_TX_PKT_V1,  false,   ELYSIUM_STOV1_BLOCK    },
 
-        { ELYSIUM_TYPE_METADEX_TRADE,             MP_TX_PKT_V0,  false,   ELYSIUM_METADEX_BLOCK  },
-        { ELYSIUM_TYPE_METADEX_CANCEL_PRICE,      MP_TX_PKT_V0,  false,   ELYSIUM_METADEX_BLOCK  },
-        { ELYSIUM_TYPE_METADEX_CANCEL_PAIR,       MP_TX_PKT_V0,  false,   ELYSIUM_METADEX_BLOCK  },
-        { ELYSIUM_TYPE_METADEX_CANCEL_ECOSYSTEM,  MP_TX_PKT_V0,  false,   ELYSIUM_METADEX_BLOCK  },
-
         { ELYSIUM_TYPE_SEND_ALL,                  MP_TX_PKT_V0,  false,   ELYSIUM_SEND_ALL_BLOCK },
 
-        { ELYSIUM_TYPE_OFFER_ACCEPT_A_BET,        MP_TX_PKT_V0,  false,   ELYSIUM_BET_BLOCK      },
-
-        { ELYSIUM_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
-        { ELYSIUM_TYPE_SIMPLE_SPEND,              MP_TX_PKT_V1,  false,   SIGMA_SPENDV1_FEATURE_BLOCK },
-        { ELYSIUM_TYPE_CREATE_DENOMINATION,       MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
-        { ELYSIUM_TYPE_SIMPLE_MINT,               MP_TX_PKT_V0,  false,   SIGMA_FEATURE_BLOCK         },
+        { ELYSIUM_TYPE_LELANTUS_MINT,             MP_TX_PKT_V0,  false,   LELANTUS_FEATURE_BLOCK      },
+        { ELYSIUM_TYPE_LELANTUS_JOINSPLIT,        MP_TX_PKT_V0,  false,   LELANTUS_FEATURE_BLOCK      },
+        { ELYSIUM_TYPE_CHANGE_LELANTUS_STATUS,    MP_TX_PKT_V0,  false,   LELANTUS_FEATURE_BLOCK      },
     };
 
     const size_t nSize = sizeof(vTxRestrictions) / sizeof(vTxRestrictions[0]);
@@ -107,37 +94,29 @@ CMainConsensusParams::CMainConsensusParams()
     // Script related:
     PUBKEYHASH_BLOCK = 0;
     SCRIPTHASH_BLOCK = 0;
-    MULTISIG_BLOCK = 0;
     NULLDATA_BLOCK = 0;
 
     // Transaction restrictions:
     ELYSIUM_ALERT_BLOCK = 0;
     ELYSIUM_SEND_BLOCK = 0;
-    ELYSIUM_DEX_BLOCK = 0;
     ELYSIUM_SP_BLOCK = 0;
     ELYSIUM_MANUALSP_BLOCK = 0;
     ELYSIUM_STO_BLOCK = 0;
-    ELYSIUM_METADEX_BLOCK = 0;
     ELYSIUM_SEND_ALL_BLOCK = 0;
-    ELYSIUM_BET_BLOCK = 999999;
     ELYSIUM_STOV1_BLOCK = 999999;
 
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
-    DEXMATH_FEATURE_BLOCK = 0;
-    SPCROWDCROSSOVER_FEATURE_BLOCK = 0;
-    TRADEALLPAIRS_FEATURE_BLOCK = 0;
-    FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
 
-    // Sigma releated
-    SIGMA_FEATURE_BLOCK = 212000; // 4 Nov 2019
-    SIGMA_SPENDV1_FEATURE_BLOCK = 281532; // 1 July 2020
+    // Lelantus releated
+    LELANTUS_FEATURE_BLOCK = 0;
 
     // Property creation fee
-    PROPERTY_CREATION_FEE_BLOCK = 212000;
-    PROPERTY_CREATION_FEE = 10 * COIN;
-    PROPERTY_CREATION_FEE_RECEIVER.SetString("a1HwTdCmQV3NspP2QqCGpehoFpi8NY4Zg3");
+	// Set to false anyway, so this code just for be here for removing in the future
+    PROPERTY_CREATION_FEE_BLOCK = 0;
+    PROPERTY_CREATION_FEE = 1000 * COIN;
+    PROPERTY_CREATION_FEE_RECEIVER.SetString("a1kCCGddf5pMXSipLVD9hBG2MGGVNaJ15U");
 }
 
 /**
@@ -145,7 +124,7 @@ CMainConsensusParams::CMainConsensusParams()
  */
 CTestNetConsensusParams::CTestNetConsensusParams()
 {
-    GENESIS_BLOCK = 87000;
+    GENESIS_BLOCK = 29000;
 
     // Notice range for feature activations:
     MIN_ACTIVATION_BLOCKS = 0;
@@ -157,7 +136,6 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     // Script related:
     PUBKEYHASH_BLOCK = 0;
     SCRIPTHASH_BLOCK = 0;
-    MULTISIG_BLOCK = 0;
     NULLDATA_BLOCK = 0;
 
     // Transaction restrictions:
@@ -167,27 +145,20 @@ CTestNetConsensusParams::CTestNetConsensusParams()
     ELYSIUM_SP_BLOCK = 0;
     ELYSIUM_MANUALSP_BLOCK = 0;
     ELYSIUM_STO_BLOCK = 0;
-    ELYSIUM_METADEX_BLOCK = 0;
     ELYSIUM_SEND_ALL_BLOCK = 0;
-    ELYSIUM_BET_BLOCK = 999999;
-    ELYSIUM_STOV1_BLOCK = 999999;
+    ELYSIUM_STOV1_BLOCK = 29000;
 
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
-    DEXMATH_FEATURE_BLOCK = 0;
-    SPCROWDCROSSOVER_FEATURE_BLOCK = 0;
-    TRADEALLPAIRS_FEATURE_BLOCK = 0;
-    FEES_FEATURE_BLOCK = 999999;
-    FREEZENOTICE_FEATURE_BLOCK = 999999;
+    FREEZENOTICE_FEATURE_BLOCK = 29000;
 
-    // sigma related
-    SIGMA_FEATURE_BLOCK = 100000;
-    SIGMA_SPENDV1_FEATURE_BLOCK = 140000;
+    // Lelantus related
+    LELANTUS_FEATURE_BLOCK = 29000;
 
     // Property creation fee
-    PROPERTY_CREATION_FEE_BLOCK = 100000;
+    PROPERTY_CREATION_FEE_BLOCK = 29000;
     PROPERTY_CREATION_FEE = 10 * COIN;
-    PROPERTY_CREATION_FEE_RECEIVER.SetString("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve");
+    PROPERTY_CREATION_FEE_RECEIVER.SetString("TKPbcG9QVLSfNvrtowQ7GzEEXq4zPjkej6");
 }
 
 /**
@@ -207,7 +178,6 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     // Script related:
     PUBKEYHASH_BLOCK = 0;
     SCRIPTHASH_BLOCK = 0;
-    MULTISIG_BLOCK = 0;
     NULLDATA_BLOCK = 0;
 
     // Transaction restrictions:
@@ -217,27 +187,20 @@ CRegTestConsensusParams::CRegTestConsensusParams()
     ELYSIUM_SP_BLOCK = 0;
     ELYSIUM_MANUALSP_BLOCK = 0;
     ELYSIUM_STO_BLOCK = 0;
-    ELYSIUM_METADEX_BLOCK = 0;
     ELYSIUM_SEND_ALL_BLOCK = 0;
-    ELYSIUM_BET_BLOCK = 999999;
     ELYSIUM_STOV1_BLOCK = 999999;
 
     // Other feature activations:
     GRANTEFFECTS_FEATURE_BLOCK = 0;
-    DEXMATH_FEATURE_BLOCK = 0;
-    SPCROWDCROSSOVER_FEATURE_BLOCK = 0;
-    TRADEALLPAIRS_FEATURE_BLOCK = 0;
-    FEES_FEATURE_BLOCK = 999999;
     FREEZENOTICE_FEATURE_BLOCK = 999999;
 
-    // sigma related
-    SIGMA_FEATURE_BLOCK = 100;
-    SIGMA_SPENDV1_FEATURE_BLOCK = 150;
+    // Lelantus related
+    LELANTUS_FEATURE_BLOCK = 1000;
 
     // Property creation fee
     PROPERTY_CREATION_FEE_BLOCK = 250;
     PROPERTY_CREATION_FEE = 10 * COIN;
-    PROPERTY_CREATION_FEE_RECEIVER.SetString("TG2ruj59E5b1u9G3F7HQVs6pCcVDBxrQve");
+    PROPERTY_CREATION_FEE_RECEIVER.SetString("TKPbcG9QVLSfNvrtowQ7GzEEXq4zPjkej6");
 }
 
 //! Consensus parameters for mainnet
@@ -329,9 +292,6 @@ bool IsAllowedOutputType(int whichType, int nBlock)
         case TX_SCRIPTHASH:
             return (params.SCRIPTHASH_BLOCK <= nBlock);
 
-        case TX_MULTISIG:
-            return (params.MULTISIG_BLOCK <= nBlock);
-
         case TX_NULL_DATA:
             return (params.NULLDATA_BLOCK <= nBlock);
     }
@@ -373,29 +333,11 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
         case FEATURE_CLASS_C:
             MutableConsensusParams().NULLDATA_BLOCK = activationBlock;
         break;
-        case FEATURE_METADEX:
-            MutableConsensusParams().ELYSIUM_METADEX_BLOCK = activationBlock;
-        break;
-        case FEATURE_BETTING:
-            MutableConsensusParams().ELYSIUM_BET_BLOCK = activationBlock;
-        break;
         case FEATURE_GRANTEFFECTS:
             MutableConsensusParams().GRANTEFFECTS_FEATURE_BLOCK = activationBlock;
         break;
-        case FEATURE_DEXMATH:
-            MutableConsensusParams().DEXMATH_FEATURE_BLOCK = activationBlock;
-        break;
         case FEATURE_SENDALL:
             MutableConsensusParams().ELYSIUM_SEND_ALL_BLOCK = activationBlock;
-        break;
-        case FEATURE_SPCROWDCROSSOVER:
-            MutableConsensusParams().SPCROWDCROSSOVER_FEATURE_BLOCK = activationBlock;
-        break;
-        case FEATURE_TRADEALLPAIRS:
-            MutableConsensusParams().TRADEALLPAIRS_FEATURE_BLOCK = activationBlock;
-        break;
-        case FEATURE_FEES:
-            MutableConsensusParams().FEES_FEATURE_BLOCK = activationBlock;
         break;
         case FEATURE_STOV1:
             MutableConsensusParams().ELYSIUM_STOV1_BLOCK = activationBlock;
@@ -403,11 +345,8 @@ bool ActivateFeature(uint16_t featureId, int activationBlock, uint32_t minClient
         case FEATURE_FREEZENOTICE:
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = activationBlock;
         break;
-        case FEATURE_SIGMA:
-            MutableConsensusParams().SIGMA_FEATURE_BLOCK = activationBlock;
-        break;
-        case FEATURE_SIGMA_SPENDV1:
-            MutableConsensusParams().SIGMA_SPENDV1_FEATURE_BLOCK = activationBlock;
+        case FEATURE_LELANTUS:
+            MutableConsensusParams().LELANTUS_FEATURE_BLOCK = activationBlock;
         break;
         default:
             supported = false;
@@ -450,29 +389,11 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
         case FEATURE_CLASS_C:
             MutableConsensusParams().NULLDATA_BLOCK = 999999;
         break;
-        case FEATURE_METADEX:
-            MutableConsensusParams().ELYSIUM_METADEX_BLOCK = 999999;
-        break;
-        case FEATURE_BETTING:
-            MutableConsensusParams().ELYSIUM_BET_BLOCK = 999999;
-        break;
         case FEATURE_GRANTEFFECTS:
             MutableConsensusParams().GRANTEFFECTS_FEATURE_BLOCK = 999999;
         break;
-        case FEATURE_DEXMATH:
-            MutableConsensusParams().DEXMATH_FEATURE_BLOCK = 999999;
-        break;
         case FEATURE_SENDALL:
             MutableConsensusParams().ELYSIUM_SEND_ALL_BLOCK = 999999;
-        break;
-        case FEATURE_SPCROWDCROSSOVER:
-            MutableConsensusParams().SPCROWDCROSSOVER_FEATURE_BLOCK = 999999;
-        break;
-        case FEATURE_TRADEALLPAIRS:
-            MutableConsensusParams().TRADEALLPAIRS_FEATURE_BLOCK = 999999;
-        break;
-        case FEATURE_FEES:
-            MutableConsensusParams().FEES_FEATURE_BLOCK = 999999;
         break;
         case FEATURE_STOV1:
             MutableConsensusParams().ELYSIUM_STOV1_BLOCK = 999999;
@@ -480,11 +401,8 @@ bool DeactivateFeature(uint16_t featureId, int transactionBlock)
         case FEATURE_FREEZENOTICE:
             MutableConsensusParams().FREEZENOTICE_FEATURE_BLOCK = 999999;
         break;
-        case FEATURE_SIGMA:
-            MutableConsensusParams().SIGMA_FEATURE_BLOCK = 999999;
-        break;
-        case FEATURE_SIGMA_SPENDV1:
-            MutableConsensusParams().SIGMA_SPENDV1_FEATURE_BLOCK = 999999;
+        case FEATURE_LELANTUS:
+            MutableConsensusParams().LELANTUS_FEATURE_BLOCK = 999999;
         break;
         default:
             return false;
@@ -507,19 +425,12 @@ std::string GetFeatureName(uint16_t featureId)
 {
     switch (featureId) {
         case FEATURE_CLASS_C: return "Class C transaction encoding";
-        case FEATURE_METADEX: return "Distributed Meta Token Exchange";
-        case FEATURE_BETTING: return "Bet transactions";
         case FEATURE_GRANTEFFECTS: return "Remove grant side effects";
-        case FEATURE_DEXMATH: return "DEx integer math update";
         case FEATURE_SENDALL: return "Send All transactions";
-        case FEATURE_SPCROWDCROSSOVER: return "Disable crowdsale ecosystem crossovers";
-        case FEATURE_TRADEALLPAIRS: return "Allow trading all pairs on the Distributed Exchange";
-        case FEATURE_FEES: return "Fee system (inc 0.05% fee from trades of non-Omni pairs)";
+        case FEATURE_FEES: return "Fee system (inc 0.05% fee from trades of non-Elysium pairs)";
         case FEATURE_STOV1: return "Cross-property Send To Owners";
         case FEATURE_FREEZENOTICE: return "Activate the waiting period for enabling freezing";
-        case FEATURE_SIGMA: return "Activate Sigma transactions";
-        case FEATURE_SIGMA_SPENDV1: return "Activate Sigma spend V1 transactions";
-
+        case FEATURE_LELANTUS: return "Activate Lelantus transactions";
         default: return "Unknown feature";
     }
 }
@@ -536,29 +447,11 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
         case FEATURE_CLASS_C:
             activationBlock = params.NULLDATA_BLOCK;
             break;
-        case FEATURE_METADEX:
-            activationBlock = params.ELYSIUM_METADEX_BLOCK;
-            break;
-        case FEATURE_BETTING:
-            activationBlock = params.ELYSIUM_BET_BLOCK;
-            break;
         case FEATURE_GRANTEFFECTS:
             activationBlock = params.GRANTEFFECTS_FEATURE_BLOCK;
             break;
-        case FEATURE_DEXMATH:
-            activationBlock = params.DEXMATH_FEATURE_BLOCK;
-            break;
         case FEATURE_SENDALL:
             activationBlock = params.ELYSIUM_SEND_ALL_BLOCK;
-            break;
-        case FEATURE_SPCROWDCROSSOVER:
-            activationBlock = params.SPCROWDCROSSOVER_FEATURE_BLOCK;
-            break;
-        case FEATURE_TRADEALLPAIRS:
-            activationBlock = params.TRADEALLPAIRS_FEATURE_BLOCK;
-            break;
-        case FEATURE_FEES:
-            activationBlock = params.FEES_FEATURE_BLOCK;
             break;
         case FEATURE_STOV1:
             activationBlock = params.ELYSIUM_STOV1_BLOCK;
@@ -566,11 +459,8 @@ bool IsFeatureActivated(uint16_t featureId, int transactionBlock)
         case FEATURE_FREEZENOTICE:
             activationBlock = params.FREEZENOTICE_FEATURE_BLOCK;
             break;
-        case FEATURE_SIGMA:
-            activationBlock = params.SIGMA_FEATURE_BLOCK;
-            break;
-        case FEATURE_SIGMA_SPENDV1:
-            activationBlock = params.SIGMA_SPENDV1_FEATURE_BLOCK;
+        case FEATURE_LELANTUS:
+            activationBlock = params.LELANTUS_FEATURE_BLOCK;
             break;
         default:
             return false;
@@ -599,7 +489,7 @@ bool IsTransactionTypeAllowed(int txBlock, uint32_t txProperty, uint16_t txType,
             continue;
         }
         // a property identifier of 0 (= FIRO) may be used as wildcard
-        if (ELYSIUM_PROPERTY_XZC == txProperty && !entry.allowWildcard) {
+        if (ELYSIUM_PROPERTY_FIRO == txProperty && !entry.allowWildcard) {
             continue;
         }
         // transactions are not restricted in the test ecosystem

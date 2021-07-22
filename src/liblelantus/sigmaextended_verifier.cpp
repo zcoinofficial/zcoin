@@ -23,13 +23,13 @@ bool SigmaExtendedVerifier::batchverify(
     int N = commits.size();
 
     if (commits.empty()) {
-        LogPrintf("Sigma verification failed due to commits are empty.");
+        LogPrintf("Sigma verification failed due to commits are empty.\n");
         return false;
     }
 
     for(int t = 0; t < M; ++t) {
         if(!membership_checks(proofs[t])) {
-            LogPrintf("Sigma verification failed due to membership checks failed.");
+            LogPrintf("Sigma verification failed due to membership checks failed.\n");
             return false;
         }
     }
@@ -39,7 +39,7 @@ bool SigmaExtendedVerifier::batchverify(
     for (int t = 0; t < M; ++t)
     {
         if(!compute_fs(proofs[t], x, f_[t]) || !abcd_checks(proofs[t], x, f_[t])) {
-            LogPrintf("Sigma verification failed due to f computations or abcd checks failed.");
+            LogPrintf("Sigma verification failed due to f computations or abcd checks failed.\n");
             return false;
         }
     }
@@ -132,7 +132,7 @@ bool SigmaExtendedVerifier::batchverify(
 
     right += g_ * exp;
     if(left != right) {
-        LogPrintf("Sigma verification failed due to last check failed.");
+        LogPrintf("Sigma verification failed due to last check failed.\n");
         return false;
     }
 

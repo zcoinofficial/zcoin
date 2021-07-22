@@ -9,7 +9,7 @@ namespace elysium {
 
 BOOST_AUTO_TEST_SUITE(elysium_property_tests)
 
-BOOST_AUTO_TEST_CASE(sigma_status_is_enabled_flag)
+/*BOOST_AUTO_TEST_CASE(sigma_status_is_enabled_flag)
 {
     typedef std::underlying_type<SigmaStatus>::type SigmaStatusBaseType;
 
@@ -28,7 +28,7 @@ BOOST_AUTO_TEST_CASE(sigma_status_is_enabled_flag)
             BOOST_CHECK_EQUAL(res, false);
         }
     } while (i++ == std::numeric_limits<SigmaStatusBaseType>::max());
-}
+}*/
 
 BOOST_AUTO_TEST_SUITE_END()
 

@@ -32,13 +32,22 @@ public:
                 uint64_t Vout,
                 const uint256& txHash) const;
 
+#ifdef ENABLE_ELYSIUM
+    bool VerifyElysium(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
+                       const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
+                       const std::vector<PublicCoin>& Cout,
+                       uint64_t Vout,
+                       const uint256& txHash) const;
+#endif
+
     bool Verify(const std::map<uint32_t, std::vector<PublicCoin>>& anonymity_sets,
                 const std::vector<std::vector<unsigned char>>& anonymity_set_hashes,
                 const std::vector<PublicCoin>& Cout,
                 uint64_t Vout,
                 const uint256& txHash,
                 Scalar& challenge,
-                bool fSkipVerification = false) const;
+                bool fSkipVerification = false,
+                boost::optional<int64_t> nMaxValueLelantusSpendPerTransaction = boost::none) const;
 
     void generatePubKeys(const std::vector<std::pair<PrivateCoin, uint32_t>>& Cin);
 

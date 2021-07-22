@@ -213,10 +213,10 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
             MnemonicContainer mContainer = mnemonicContainer;
             DecryptMnemonicContainer(mContainer);
             SecureVector seed = mContainer.GetSeed();
-            masterKey.SetMaster(&seed[0], seed.size());
+            masterKey.SetMaster(seed.empty() ? nullptr: &seed[0], seed.size());
         } else {
             // try to get the master key
-            if (!GetKey(hdChain.masterKeyID, key))
+            if (!GetKey(hdChain.masterKeyID, key) || !key.size())
                 throw std::runtime_error(std::string(__func__) + ": Master key not found");
             masterKey.SetMaster(key.begin(), key.size());
         }
@@ -237,6 +237,9 @@ CPubKey CWallet::GenerateNewKey(uint32_t nChange, bool fWriteChain)
         // derive child key at next index, skip keys already known to the wallet
         do
         {
+            if (hdChain.nExternalChainCounters.size() <= nChange) {
+                hdChain.nExternalChainCounters.resize(nChange+1, 0);
+            }
             externalChainChildKey.Derive(childKey, hdChain.nExternalChainCounters[nChange]);
             metadata.hdKeypath = "m/44'/" + std::to_string(nIndex) + "'/0'/" + std::to_string(nChange) + "/" + std::to_string(hdChain.nExternalChainCounters[nChange]);
             metadata.hdMasterKeyID = hdChain.masterKeyID;

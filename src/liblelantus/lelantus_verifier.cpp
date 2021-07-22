@@ -38,9 +38,14 @@ bool LelantusVerifier::verify(
         const LelantusProof& proof,
         const SchnorrProof& qkSchnorrProof,
         Scalar& x,
-        bool fSkipVerification) {
+        bool fSkipVerification,
+        boost::optional<int64_t> nMaxValueLelantusSpendPerTransaction) {
+    if (!nMaxValueLelantusSpendPerTransaction.is_initialized()) {
+        nMaxValueLelantusSpendPerTransaction = ::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction;
+    }
+
     //check the overflow of Vout and fee
-    if (!(Vout <= uint64_t(::Params().GetConsensus().nMaxValueLelantusSpendPerTransaction) && fee < (1000 * CENT))) { // 1000 * CENT is the value of max fee defined at validation.h
+    if (!(Vout <= uint64_t(nMaxValueLelantusSpendPerTransaction.get()) && fee < (1000 * CENT))) { // 1000 * CENT is the value of max fee defined at validation.h
         LogPrintf("Lelantus verification failed due to transparent values check failed.");
         return false;
     }
@@ -143,7 +148,7 @@ bool LelantusVerifier::verify_sigma(
             C_.emplace_back(anonymity_sets[k][j].getValue());
 
         if (!sigmaVerifier.batchverify(C_, x, Sin[k], sigma_proofs_k)) {
-            LogPrintf("Lelantus verification failed due sigma verification failed.");
+            LogPrintf("Lelantus verification failed due sigma verification failed.\n");
             return false;
         }
     }

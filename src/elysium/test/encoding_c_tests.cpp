@@ -30,12 +30,13 @@ BOOST_AUTO_TEST_CASE(class_c_marker)
     nMaxDatacarrierBytes = 40; // byte
 
     std::vector<unsigned char> vchMarker;
-    vchMarker.push_back(0x65); // "e"
-    vchMarker.push_back(0x78); // "x"
-    vchMarker.push_back(0x6f); // "o"
-    vchMarker.push_back(0x64); // "d"
-    vchMarker.push_back(0x75); // "u"
-    vchMarker.push_back(0x73); // "s"
+    vchMarker.push_back('e');
+    vchMarker.push_back('l');
+    vchMarker.push_back('y');
+    vchMarker.push_back('s');
+    vchMarker.push_back('i');
+    vchMarker.push_back('u');
+    vchMarker.push_back('m');
 
     std::vector<unsigned char> vchPayload = ParseHex(
         "00000000000000010000000006dac2c0");
@@ -80,7 +81,7 @@ BOOST_AUTO_TEST_CASE(class_c_with_empty_payload)
     BOOST_CHECK_THROW(EncodeClassC(vchEmptyPayload.begin(), vchEmptyPayload.end()), std::invalid_argument);
 
     // Exactly the size of the marker
-    nMaxDatacarrierBytes = 8; // byte
+    nMaxDatacarrierBytes = 9; // byte
 
     BOOST_CHECK_NO_THROW(EncodeClassC(vchEmptyPayload.begin(), vchEmptyPayload.end()));
 

@@ -396,7 +396,7 @@ public:
     {
         pdb->CompactRange(nullptr, nullptr);
     }
-    
+
 };
 
 template<typename CDBTransaction>

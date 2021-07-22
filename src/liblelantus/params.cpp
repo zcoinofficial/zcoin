@@ -5,6 +5,9 @@ namespace lelantus {
 
     CCriticalSection Params::cs_instance;
     std::unique_ptr<Params> Params::instance;
+#ifdef ENABLE_ELYSIUM
+    std::unique_ptr<Params> Params::elysium_instance;
+#endif
 
 Params const* Params::get_default() {
     if (instance) {
@@ -37,12 +40,50 @@ Params const* Params::get_default() {
         int n_rangeProof = 64;
         int max_m_rangeProof = 16;
 
-        instance.reset(new Params(g, n, m, n_rangeProof, max_m_rangeProof));
+        instance.reset(new Params(g, n, m, n_rangeProof, max_m_rangeProof, ::Params().GetConsensus().nMaxValueLelantusMint));
         return instance.get();
     }
 }
 
-Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangeProof_, int max_m_rangeProof_):
+#ifdef ENABLE_ELYSIUM
+Params const* Params::get_elysium() {
+    if (elysium_instance) {
+        return elysium_instance.get();
+    } else {
+        LOCK(cs_instance); // it's fine to reuse the lock from get_default
+        if (elysium_instance) {
+            return elysium_instance.get();
+        }
+
+        //fixing generator G;
+        GroupElement g;
+        if (!(::Params().GetConsensus().IsTestnet())) {
+            unsigned char buff[32] = {0};
+            GroupElement base;
+            base.set_base_g();
+            base.normalSha256(buff);
+            g.generate(buff);
+        }
+        else
+            g = GroupElement("9216064434961179932092223867844635691966339998754536116709681652691785432045",
+                             "33986433546870000256104618635743654523665060392313886665479090285075695067131");
+
+
+        //fixing n and m; N = n^m = 65,536
+        int n = 16;
+        int m = 4;
+
+        //fixing bulletproof params
+        int n_rangeProof = 64;
+        int max_m_rangeProof = 16;
+
+        elysium_instance.reset(new Params(g, n, m, n_rangeProof, max_m_rangeProof, INT64_MAX));
+        return elysium_instance.get();
+    }
+}
+#endif // ENABLE_ELYSIUM
+
+Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangeProof_, int max_m_rangeProof_, int64_t n_max_value_mint):
     g(g_),
     n_sigma(n_sigma_),
     m_sigma(m_sigma_),
@@ -79,7 +120,7 @@ Params::Params(const GroupElement& g_, int n_sigma_, int m_sigma_, int n_rangePr
         h_rangeProof[i].generate(buff2);
     }
 
-    limit_range = Scalar(uint64_t(2)).exponent(get_bulletproofs_n()) - ::Params().GetConsensus().nMaxValueLelantusMint;
+    limit_range = Scalar(uint64_t(2)).exponent(get_bulletproofs_n()) - n_max_value_mint;
     h1_limit_range = get_h1() * limit_range;
 }
 

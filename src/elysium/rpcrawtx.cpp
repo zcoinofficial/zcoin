@@ -23,7 +23,6 @@
 
 extern CCriticalSection cs_main;
 
-using elysium::cs_tx_cache;
 using elysium::view;
 
 
@@ -93,7 +92,7 @@ UniValue elysium_decodetransaction(const JSONRPCRequest& request)
     {
         //TODO: The swaps below are temporarily commented out
         throw std::runtime_error("Not implemented");
-        LOCK2(cs_main, cs_tx_cache);
+        LOCK(cs_main);
         // temporarily switch global coins view cache for transaction inputs
 //        std::swap(view, viewTemp);
         // then get the results
@@ -137,45 +136,6 @@ UniValue elysium_createrawtx_opreturn(const JSONRPCRequest& request)
     // extend the transaction
     tx = ElysiumTxBuilder(tx)
             .addOpReturn(payload)
-            .build();
-
-    return EncodeHexTx(tx);
-}
-
-UniValue elysium_createrawtx_multisig(const JSONRPCRequest& request)
-{
-    if (request.fHelp || request.params.size() != 4)
-        throw std::runtime_error(
-            "elysium_createrawtx_multisig \"rawtx\" \"payload\" \"seed\" \"redeemkey\"\n"
-
-            "\nAdds a payload with class B (bare-multisig) encoding to the transaction.\n"
-
-            "\nIf no raw transaction is provided, a new transaction is created.\n"
-
-            "\nIf the data encoding fails, then the transaction is not modified.\n"
-
-            "\nArguments:\n"
-            "1. rawtx                (string, required) the raw transaction to extend (can be null)\n"
-            "2. payload              (string, required) the hex-encoded payload to add\n"
-            "3. seed                 (string, required) the seed for obfuscation\n"
-            "4. redeemkey            (string, required) a public key or address for dust redemption\n"
-
-            "\nResult:\n"
-            "\"rawtx\"                 (string) the hex-encoded modified raw transaction\n"
-
-            "\nExamples\n"
-            + HelpExampleCli("elysium_createrawtx_multisig", "\"0100000001a7a9402ecd77f3c9f745793c9ec805bfa2e14b89877581c734c774864247e6f50400000000ffffffff01aa0a0000000000001976a9146d18edfe073d53f84dd491dae1379f8fb0dfe5d488ac00000000\" \"00000000000000020000000000989680\" \"1LifmeXYHeUe2qdKWBGVwfbUCMMrwYtoMm\" \"0252ce4bdd3ce38b4ebbc5a6e1343608230da508ff12d23d85b58c964204c4cef3\"")
-            + HelpExampleRpc("elysium_createrawtx_multisig", "\"0100000001a7a9402ecd77f3c9f745793c9ec805bfa2e14b89877581c734c774864247e6f50400000000ffffffff01aa0a0000000000001976a9146d18edfe073d53f84dd491dae1379f8fb0dfe5d488ac00000000\", \"00000000000000020000000000989680\", \"1LifmeXYHeUe2qdKWBGVwfbUCMMrwYtoMm\", \"0252ce4bdd3ce38b4ebbc5a6e1343608230da508ff12d23d85b58c964204c4cef3\"")
-        );
-
-    CMutableTransaction tx = ParseMutableTransaction(request.params[0]);
-    std::vector<unsigned char> payload = ParseHexV(request.params[1], "payload");
-    std::string obfuscationSeed = ParseAddressOrEmpty(request.params[2]);
-    CPubKey redeemKey = ParsePubKeyOrAddress(request.params[3]);
-
-    // extend the transaction
-    tx = ElysiumTxBuilder(tx)
-            .addMultisig(payload, obfuscationSeed, redeemKey)
             .build();
 
     return EncodeHexTx(tx);
@@ -321,7 +281,6 @@ static const CRPCCommand commands[] =
   //  -------------------------------- ----------------------------- ---------------------------- ----------
     { "elysium (raw transactions)", "elysium_decodetransaction",     &elysium_decodetransaction,     true },
     { "elysium (raw transactions)", "elysium_createrawtx_opreturn",  &elysium_createrawtx_opreturn,  true },
-    { "elysium (raw transactions)", "elysium_createrawtx_multisig",  &elysium_createrawtx_multisig,  true },
     { "elysium (raw transactions)", "elysium_createrawtx_input",     &elysium_createrawtx_input,     true },
     { "elysium (raw transactions)", "elysium_createrawtx_reference", &elysium_createrawtx_reference, true },
     { "elysium (raw transactions)", "elysium_createrawtx_change",    &elysium_createrawtx_change,    true },

@@ -300,7 +300,7 @@ public:
     bool WriteMnemonic(const MnemonicContainer& mnContainer);
 
     static void IncrementUpdateCounter();
-    static unsigned int GetUpdateCounter();    
+    static unsigned int GetUpdateCounter();
 
 #ifdef ENABLE_ELYSIUM
 
@@ -446,6 +446,77 @@ public:
     void ListElysiumMintsV1(InsertF insertF)
     {
         ListEntries<K, V, InsertF>(std::string("exodus_mint_v1"), insertF);
+    }
+
+    template<class MintPool>
+    bool ReadElysiumLelantusMintPool(MintPool &mintPool)
+    {
+        return Read(std::string("elysium_lelantusmint_pool"), mintPool);
+    }
+
+    template<class MintPool>
+    bool WriteElysiumLelantusMintPool(MintPool const &mintPool)
+    {
+        return Write(std::string("elysium_lelantusmint_pool"), mintPool, true);
+    }
+
+    bool HasElysiumLelantusMintPool()
+    {
+        return Exists(std::string("elysium_lelantusmint_pool"));
+    }
+
+    template<class Key, class MintID>
+    bool ReadElysiumLelantusMintId(const Key& k, MintID &id)
+    {
+        return Read(std::make_pair(std::string("elysium_lelantusmint_id"), k), id);
+    }
+
+    template<class Key, class MintID>
+    bool WriteElysiumLelantusMintId(const Key& k, const MintID &id)
+    {
+        return Write(std::make_pair(std::string("elysium_lelantusmint_id"), k), id);
+    }
+
+    template<class Key>
+    bool HasElysiumLelantusMintId(const Key& k)
+    {
+        return Exists(std::make_pair(std::string("elysium_lelantusmint_id"), k));
+    }
+
+    template<class Key>
+    bool EraseElysiumLelantusMintId(const Key& k)
+    {
+        return Erase(std::make_pair(std::string("elysium_lelantusmint_id"), k));
+    }
+
+    template<class K, class V>
+    bool ReadElysiumLelantusMint(const K& k, V& v)
+    {
+        return Read(std::make_pair(std::string("elysium_lelantusmintmint"), k), v);
+    }
+
+    template<class K>
+    bool HasElysiumLelantusMint(const K& k)
+    {
+        return Exists(std::make_pair(std::string("elysium_lelantusmintmint"), k));
+    }
+
+    template<class K, class V>
+    bool WriteElysiumLelantusMint(const K &k, const V &v)
+    {
+        return Write(std::make_pair(std::string("elysium_lelantusmintmint"), k), v, true);
+    }
+
+    template<class K>
+    bool EraseElysiumLelantusMint(const K& k)
+    {
+        return Erase(std::make_pair(std::string("elysium_lelantusmintmint"), k));
+    }
+
+    template<typename K, typename V, typename InsertF>
+    void ListElysiumLelantusMints(InsertF insertF)
+    {
+        ListEntries<K, V, InsertF>(std::string("elysium_lelantusmintmint"), insertF);
     }
 
 #endif

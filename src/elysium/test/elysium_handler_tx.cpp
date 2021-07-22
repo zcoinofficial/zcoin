@@ -124,7 +124,7 @@ BOOST_AUTO_TEST_CASE(elysium_parse_normal_tx_with_spend)
     BOOST_CHECK_EQUAL(0, ParseTransaction(*elysiumTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
 }
 
-BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_non_spend)
+/*BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_non_spend)
 {
     pwalletMain->SetBroadcastTransactions(true);
 
@@ -209,6 +209,6 @@ BOOST_AUTO_TEST_CASE(elysium_parse_sigma_tx_with_spend)
     CMPTransaction mp_obj;
 
     BOOST_CHECK_EQUAL(0, ParseTransaction(*sigmaTx, chainActive.Height(), 1, mp_obj, block.GetBlockTime()));
-}
+}*/
 
 BOOST_AUTO_TEST_SUITE_END()

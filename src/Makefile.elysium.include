@@ -4,14 +4,11 @@ ELYSIUM_H = \
   elysium/convert.h \
   elysium/createpayload.h \
   elysium/createtx.h \
-  elysium/dex.h \
   elysium/ecdsa_context.h \
   elysium/ecdsa_signature.h \
   elysium/errors.h \
-  elysium/fees.h \
   elysium/fetchwallettx.h \
   elysium/log.h \
-  elysium/mdex.h \
   elysium/notifications.h \
   elysium/elysium.h \
   elysium/packetencoder.h \
@@ -27,10 +24,8 @@ ELYSIUM_H = \
   elysium/rpcvalues.h \
   elysium/rules.h \
   elysium/script.h \
-  elysium/sigma.h \
-  elysium/sigmaprimitives.h \
-  elysium/sigmadb.h \
-  elysium/signaturebuilder.h \
+  elysium/lelantusdb.h \
+  elysium/lelantusutils.h \
   elysium/sp.h \
   elysium/sto.h \
   elysium/tally.h \
@@ -49,13 +44,10 @@ ELYSIUM_CPP = \
   elysium/convert.cpp \
   elysium/createpayload.cpp \
   elysium/createtx.cpp \
-  elysium/dex.cpp \
   elysium/ecdsa_context.cpp \
   elysium/ecdsa_signature.cpp \
-  elysium/fees.cpp \
   elysium/fetchwallettx.cpp \
   elysium/log.cpp \
-  elysium/mdex.cpp \
   elysium/notifications.cpp \
   elysium/elysium.cpp \
   elysium/packetencoder.cpp \
@@ -71,10 +63,8 @@ ELYSIUM_CPP = \
   elysium/rpcvalues.cpp \
   elysium/rules.cpp \
   elysium/script.cpp \
-  elysium/sigma.cpp \
-  elysium/sigmaprimitives.cpp \
-  elysium/sigmadb.cpp \
-  elysium/signaturebuilder.cpp \
+  elysium/lelantusdb.cpp \
+  elysium/lelantusutils.cpp \
   elysium/sp.cpp \
   elysium/sto.cpp \
   elysium/tally.cpp \
@@ -89,19 +79,17 @@ ELYSIUM_CPP = \
 if ENABLE_WALLET
 ELYSIUM_H += \
   elysium/rpctx.h \
-  elysium/sigmawallet.h \
-  elysium/sigmawalletv0.h \
-  elysium/sigmawalletv1.h \
-  elysium/wallet.h \
-  elysium/walletmodels.h
+  elysium/lelantusprimitives.h \
+  elysium/lelantuswallet.h \
+  elysium/lelantuswalletmodels.h \
+  elysium/wallet.h
 
 ELYSIUM_CPP += \
   elysium/rpctx.cpp \
-  elysium/sigmawallet.cpp \
-  elysium/sigmawalletv0.cpp \
-  elysium/sigmawalletv1.cpp \
-  elysium/wallet.cpp \
-  elysium/walletmodels.cpp
+  elysium/lelantusprimitives.cpp \
+  elysium/lelantuswallet.cpp \
+  elysium/lelantuswalletmodels.cpp \
+  elysium/wallet.cpp
 endif
 
 libbitcoin_server_a_SOURCES += \

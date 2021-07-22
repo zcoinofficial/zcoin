@@ -143,30 +143,6 @@ int64_t CMPTally::getMoneyAvailable(uint32_t propertyId) const
 }
 
 /**
- * Returns the number of reserved tokens.
- *
- * Balances can be reserved by sell offers, pending accepts, or offers
- * on the distributed exchange.
- *
- * @param propertyId  The identifier of the tally to lookup
- * @return The reserved balance
- */
-int64_t CMPTally::getMoneyReserved(uint32_t propertyId) const
-{
-    int64_t money = 0;
-    TokenMap::const_iterator it = mp_token.find(propertyId);
-
-    if (it != mp_token.end()) {
-        const BalanceRecord& record = it->second;
-        money += record.balance[SELLOFFER_RESERVE];
-        money += record.balance[ACCEPT_RESERVE];
-        money += record.balance[METADEX_RESERVE];
-    }
-
-    return money;
-}
-
-/**
  * Compares the tally with another tally and returns true, if they are equal.
  *
  * @param rhs  The other tally
@@ -223,31 +199,24 @@ bool CMPTally::operator!=(const CMPTally& rhs) const
 int64_t CMPTally::print(uint32_t propertyId, bool bDivisible) const
 {
     int64_t balance = 0;
-    int64_t selloffer_reserve = 0;
-    int64_t accept_reserve = 0;
     int64_t pending = 0;
-    int64_t metadex_reserve = 0;
 
     TokenMap::const_iterator it = mp_token.find(propertyId);
 
     if (it != mp_token.end()) {
         const BalanceRecord& record = it->second;
         balance = record.balance[BALANCE];
-        selloffer_reserve = record.balance[SELLOFFER_RESERVE];
-        accept_reserve = record.balance[ACCEPT_RESERVE];
         pending = record.balance[PENDING];
-        metadex_reserve = record.balance[METADEX_RESERVE];
     }
 
     if (bDivisible) {
-        PrintToLog("%22s [ SO_RESERVE= %22s, ACCEPT_RESERVE= %22s, METADEX_RESERVE= %22s ] %22s\n",
-                FormatDivisibleMP(balance, true), FormatDivisibleMP(selloffer_reserve, true),
-                FormatDivisibleMP(accept_reserve, true), FormatDivisibleMP(metadex_reserve, true),
+        PrintToLog("%22s %22s\n",
+                FormatDivisibleMP(balance, true),
                 FormatDivisibleMP(pending, true));
     } else {
-        PrintToLog("%14d [ SO_RESERVE= %14d, ACCEPT_RESERVE= %14d, METADEX_RESERVE= %14d ] %14d\n",
-                balance, selloffer_reserve, accept_reserve, metadex_reserve, pending);
+        PrintToLog("%14d %14d\n",
+                balance, pending);
     }
 
-    return (balance + selloffer_reserve + accept_reserve + metadex_reserve);
+    return (balance);
 }

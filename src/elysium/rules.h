@@ -18,39 +18,14 @@ namespace elysium {
 constexpr uint16_t FEATURE_CLASS_C = 1;
 
 /**
- * Feature identifier to enable the distributed token exchange.
- **/
-constexpr uint16_t FEATURE_METADEX = 2;
-
-/**
- * Feature identifier to enable betting transactions.
- **/
-constexpr uint16_t FEATURE_BETTING = 3;
-
-/**
  * Feature identifier to disable crowdsale participations when "granting tokens".
  **/
 constexpr uint16_t FEATURE_GRANTEFFECTS = 4;
 
 /**
- * Feature identifier to disable DEx "over-offers" and to switch to plain integer math.
- **/
-constexpr uint16_t FEATURE_DEXMATH = 5;
-
-/**
  * Feature identifier to enable Send All transactions.
  **/
 constexpr uint16_t FEATURE_SENDALL = 6;
-
-/**
- * Feature identifier disable ecosystem crossovers in crowdsale logic.
- **/
-constexpr uint16_t FEATURE_SPCROWDCROSSOVER = 7;
-
-/**
- * Feature identifier to enable non-Omni pairs on the distributed exchange.
- **/
-constexpr uint16_t FEATURE_TRADEALLPAIRS = 8;
 
 /**
  * Feature identifier to enable the fee cache and strip 0.05% fees from non-Omni pairs.
@@ -68,17 +43,9 @@ constexpr uint16_t FEATURE_STOV1 = 10;
 constexpr uint16_t FEATURE_FREEZENOTICE = 14;
 
 /**
- * Feature identifier to activate sigma on elysium.
+ * Feature identifier to activate lelantus on elysium.
  **/
-constexpr uint16_t FEATURE_SIGMA = 15;
-
-/**
- * Feature indentifier to activate sigma spend v1 on elysium.
- **/
-constexpr uint16_t FEATURE_SIGMA_SPENDV1 = 16;
-
-//! When (propertyTotalTokens / ELYSIUM_FEE_THRESHOLD) is reached fee distribution will occur
-const int64_t ELYSIUM_FEE_THRESHOLD = 100000; // 0.001%
+constexpr uint16_t FEATURE_LELANTUS = 17;
 
 /** A structure to represent transaction restrictions.
  */
@@ -144,11 +111,6 @@ public:
     int SCRIPTHASH_BLOCK;
 
     /**
-     * Block to enable bare-multisig based encoding.
-     **/
-    int MULTISIG_BLOCK;
-
-    /**
      * Block to enable OP_RETURN based encoding.
      **/
     int NULLDATA_BLOCK;
@@ -184,19 +146,9 @@ public:
     int ELYSIUM_STO_BLOCK;
 
     /**
-     * Block to enable MetaDEx transactions.
-     **/
-    int ELYSIUM_METADEX_BLOCK;
-
-    /**
      * Block to enable "send all" transactions.
      **/
     int ELYSIUM_SEND_ALL_BLOCK;
-
-    /**
-     * Block to enable betting transactions.
-     **/
-    int ELYSIUM_BET_BLOCK;
 
     /**
      * Block to enable cross property STO (v1).
@@ -209,39 +161,14 @@ public:
     int GRANTEFFECTS_FEATURE_BLOCK;
 
     /**
-     * Block to disable DEx "over-offers" and to switch to plain integer math.
-     **/
-    int DEXMATH_FEATURE_BLOCK;
-
-    /**
-     * Block to disable ecosystem crossovers in crowdsale logic.
-     **/
-    int SPCROWDCROSSOVER_FEATURE_BLOCK;
-
-    /**
-     * Block to enable trading of non-Omni pairs.
-     **/
-    int TRADEALLPAIRS_FEATURE_BLOCK;
-
-    /**
-     * Block to enable the fee system & 0.05% fee for trading non-Omni pairs.
-     **/
-    int FEES_FEATURE_BLOCK;
-
-    /**
      * Block to activate the waiting period for enabling managed property address freezing.
      **/
     int FREEZENOTICE_FEATURE_BLOCK;
 
     /**
-     * Block to activate Sigma related features.
+     * Block to activate Lelantus related features.
      **/
-    int SIGMA_FEATURE_BLOCK;
-
-    /**
-     *  Block to activate Sigma spend version 1
-     **/
-    int SIGMA_SPENDV1_FEATURE_BLOCK;
+    int LELANTUS_FEATURE_BLOCK;
 
     /**
      * Block to activate property creation fee.

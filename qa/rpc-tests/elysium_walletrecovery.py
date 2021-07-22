@@ -27,7 +27,7 @@ class ElysiumWalletRecoveryTest(ElysiumTestFramework):
         os.mkdir(datadir)
 
     def connect_to_other(self, node):
-        for i in range(0, len(self.nodes)):
+        for i in range(len(self.nodes)):
             if i != node:
                 connect_nodes_bi(self.nodes, node, i)
 
@@ -41,36 +41,35 @@ class ElysiumWalletRecoveryTest(ElysiumTestFramework):
 
         super().run_test()
 
-        # generate sigma property
+        # generate lelantus property
         owner = self.addrs[0]
 
-        sigma_start_block = 150
-        self.nodes[0].generatetoaddress(
-            sigma_start_block - self.nodes[0].getblockcount(),
-            owner)
+        lelantus_start_block = 1000
+        remaining = lelantus_start_block - self.nodes[0].getblockcount()
+        while remaining > 0:
+            # Generate in blocks of 10 so we don't run into timeout issues.
+            self.nodes[0].generatetoaddress(min(10, remaining), owner)
+            remaining -= 10
 
-        self.nodes[0].elysium_sendissuancefixed(
-            owner, 1, 1, 0, '', '', 'Test Sigma', '', '', '3', 1)
+        self.nodes[0].elysium_sendissuancefixed(owner, 1, 1, 0, '', '', 'Test Lelantus', '', '', '6', 1)
 
-        self.nodes[0].generate(10)
-        sigmaProperty = 3
+        self.nodes[0].generate(1)
+        prop = 3
 
-        self.nodes[0].elysium_sendcreatedenomination(owner, sigmaProperty, '1')
-        self.nodes[0].generate(10)
-
-        # generate two coins and spend one of them
-        self.nodes[0].elysium_sendmint(owner, sigmaProperty, {"0": 2})
-        self.nodes[0].generate(10)
+        self.nodes[0].elysium_sendlelantusmint(owner, prop, '3')
+        self.nodes[0].elysium_sendlelantusmint(owner, prop, '3')
 
         for _ in range(10):
-            self.nodes[0].mint(1)
+            self.nodes[0].mintlelantus(1)
 
-        self.nodes[0].generate(10)
+        self.nodes[0].generate(2)
 
-        self.nodes[0].elysium_sendspend(owner, sigmaProperty, 0)
-        self.nodes[0].generate(10)
+        self.nodes[0].elysium_sendlelantusspend(owner, prop, '2')
+        self.nodes[0].generate(2)
 
         sync_blocks(self.nodes)
+
+        expected_num_mints = len(self.nodes[0].elysium_listlelantusmints())
 
         # stop, clear state and restore fresh wallet
         stop_node(self.nodes[0], 0)
@@ -84,19 +83,13 @@ class ElysiumWalletRecoveryTest(ElysiumTestFramework):
         self.nodes[0] = start_node(0, self.options.tmpdir, ["-elysium"])
         self.connect_to_other(0)
 
-        sync_blocks(self.nodes)
+        sync_blocks(self.nodes, timeout=1000)
+        self.nodes[0].elysium_recoverlelantusmints()
 
         # verify state
-        unspents = self.nodes[0].elysium_listmints()
-        assert_equal(1, len(unspents))
-        assert_equal('2', self.nodes[0].elysium_getbalance(owner, sigmaProperty)['balance'])
-
-        self.nodes[0].elysium_sendspend(owner, sigmaProperty, 0)
-        self.nodes[0].generate(10)
-
-        unspents = self.nodes[0].elysium_listmints()
-        assert_equal(0, len(unspents))
-        assert_equal('3', self.nodes[0].elysium_getbalance(owner, sigmaProperty)['balance'])
+        unspents = self.nodes[0].elysium_listlelantusmints()
+        assert_equal(expected_num_mints, len(unspents))
+        assert_equal('2', self.nodes[0].elysium_getbalance(owner, prop)['balance'])
 
 if __name__ == '__main__':
     ElysiumWalletRecoveryTest().main()

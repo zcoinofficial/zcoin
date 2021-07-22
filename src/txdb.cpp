@@ -432,8 +432,13 @@ int CBlockTreeDB::GetBlockIndexVersion(uint256 const & blockHash)
                 continue;
             }
             CDiskBlockIndex diskindex;
-            if (pcursor->GetValue(diskindex))
+            if (pcursor->GetValue(diskindex)) {
                 return diskindex.nDiskBlockVersion;
+            } else {
+                // We get our answer by looking at a random nDiskBlockVersion record. If no value is there, we should
+                // assume none exists. Not doing this causes an infinite loop.
+                return -1;
+            }
         } else {
 	    break;
         }

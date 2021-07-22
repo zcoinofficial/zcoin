@@ -7,45 +7,32 @@ ELYSIUM_TEST_CPP = \
   elysium/test/checkpoint_tests.cpp \
   elysium/test/create_payload_tests.cpp \
   elysium/test/create_tx_tests.cpp \
-  elysium/test/crowdsale_participation_tests.cpp \
-  elysium/test/dex_purchase_tests.cpp \
   elysium/test/ecdsa_signature_tests.cpp \
-  elysium/test/encoding_b_tests.cpp \
   elysium/test/encoding_c_tests.cpp \
   elysium/test/elysium_handler_tx.cpp \
   elysium/test/elysium_tests.cpp \
+  elysium/test/lelantuswallet_tests.cpp \
   elysium/test/lock_tests.cpp \
   elysium/test/marker_tests.cpp \
   elysium/test/output_restriction_tests.cpp \
-  elysium/test/packetencoder_tests.cpp \
-  elysium/test/parsing_b_tests.cpp \
   elysium/test/parsing_c_tests.cpp \
   elysium/test/property_tests.cpp \
   elysium/test/rounduint64_tests.cpp \
   elysium/test/rules_txs_tests.cpp \
   elysium/test/script_extraction_tests.cpp \
   elysium/test/script_solver_tests.cpp \
-  elysium/test/sender_bycontribution_tests.cpp \
   elysium/test/sender_firstin_tests.cpp \
-  elysium/test/sigma_tests.cpp \
-  elysium/test/sigmadb_tests.cpp \
-  elysium/test/sigmaprimitives_tests.cpp \
-  elysium/test/signaturebuilder_sigmav1_tests.cpp \
-  elysium/test/sp_tests.cpp \
   elysium/test/strtoint64_tests.cpp \
   elysium/test/swapbyteorder_tests.cpp \
+  elysium/test/lelantusdb_tests.cpp \
   elysium/test/tally_tests.cpp \
   elysium/test/uint256_extensions_tests.cpp \
   elysium/test/utils_tx.cpp
 
-if ENABLE_WALLET
-ELYSIUM_TEST_CPP += \
-  elysium/test/sigmawallet_tests.cpp \
-  elysium/test/sigmawalletv0_tests.cpp \
-  elysium/test/sigmawalletv1_tests.cpp \
-  elysium/test/wallet_tests.cpp \
-  elysium/test/walletmodels_tests.cpp
-endif
+#if ENABLE_WALLET
+#ELYSIUM_TEST_CPP += \
+#  elysium/test/lelantuswallet_tests.cpp
+#endif
 
 BITCOIN_TESTS += \
   $(ELYSIUM_TEST_CPP) \

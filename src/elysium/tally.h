@@ -6,11 +6,8 @@
 
 //! Balance record types
 enum TallyType {
-    BALANCE = 0,
-    SELLOFFER_RESERVE = 1,
-    ACCEPT_RESERVE = 2,
+    BALANCE = 0,   
     PENDING = 3,
-    METADEX_RESERVE = 4,
     TALLY_TYPE_COUNT
 };
 
@@ -48,9 +45,6 @@ public:
 
     /** Returns the number of available tokens. */
     int64_t getMoneyAvailable(uint32_t propertyId) const;
-
-    /** Returns the number of reserved tokens. */
-    int64_t getMoneyReserved(uint32_t propertyId) const;
 
     /** Compares the tally with another tally and returns true, if they are equal. */
     bool operator==(const CMPTally& rhs) const;

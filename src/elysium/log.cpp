@@ -16,24 +16,22 @@
 #include <vector>
 
 // Default log files
-const std::string LOG_FILENAME    = "exodus.log";
+const std::string LOG_FILENAME    = "elysium.log";
 
 // Options
 static const long LOG_BUFFERSIZE  =  8000000; //  8 MB
 static const long LOG_SHRINKSIZE  = 50000000; // 50 MB
 
 // Debug flags
-bool elysium_debug_parser_data        = 0;
+bool elysium_debug_parser_data        = true;
 bool elysium_debug_parser_readonly    = 0;
 //! Print information to potential DEx payments and outputs
-bool elysium_debug_parser_dex         = 1;
 bool elysium_debug_parser             = 0;
 bool elysium_debug_verbose            = 0;
 bool elysium_debug_verbose2           = 0;
 bool elysium_debug_verbose3           = 0;
 bool elysium_debug_vin                = 0;
 bool elysium_debug_script             = 0;
-bool elysium_debug_dex                = 1;
 bool elysium_debug_send               = 1;
 bool elysium_debug_tokens             = 0;
 //! Print information about payloads with non-sequential sequence number
@@ -43,14 +41,9 @@ bool elysium_debug_tally              = 1;
 bool elysium_debug_sp                 = 1;
 bool elysium_debug_sto                = 1;
 bool elysium_debug_txdb               = 0;
-bool elysium_debug_tradedb            = 1;
 bool elysium_debug_persistence        = 0;
 bool elysium_debug_ui                 = 0;
 bool elysium_debug_pending            = 1;
-bool elysium_debug_metadex1           = 0;
-bool elysium_debug_metadex2           = 0;
-//! Print orderbook before and after each trade
-bool elysium_debug_metadex3           = 0;
 //! Print transaction fields, when interpreting packets
 bool elysium_debug_packets            = 1;
 //! Print transaction fields, when interpreting packets (in RPC mode)
@@ -220,7 +213,7 @@ int LogFilePrint(const std::string& str)
 /**
  * Determine whether to override compiled debug levels via enumerating startup option --elysiumdebug.
  *
- * Example usage (granular categories)    : --elysiumdebug=parser --elysiumdebug=metadex1 --elysiumdebug=ui
+ * Example usage (granular categories)    : --elysiumdebug=parser --elysiumdebug=ui
  * Example usage (enable all categories)  : --elysiumdebug=all
  * Example usage (disable all debugging)  : --elysiumdebug=none
  * Example usage (disable all except XYZ) : --elysiumdebug=none --omnidebug=parser --elysiumdebug=sto
@@ -236,14 +229,12 @@ void InitDebugLogLevels()
     for (std::vector<std::string>::const_iterator it = debugLevels.begin(); it != debugLevels.end(); ++it) {
         if (*it == "parser_data") elysium_debug_parser_data = true;
         if (*it == "parser_readonly") elysium_debug_parser_readonly = true;
-        if (*it == "parser_dex") elysium_debug_parser_dex = true;
         if (*it == "parser") elysium_debug_parser = true;
         if (*it == "verbose") elysium_debug_verbose = true;
         if (*it == "verbose2") elysium_debug_verbose2 = true;
         if (*it == "verbose3") elysium_debug_verbose3 = true;
         if (*it == "vin") elysium_debug_vin = true;
         if (*it == "script") elysium_debug_script = true;
-        if (*it == "dex") elysium_debug_dex = true;
         if (*it == "send") elysium_debug_send = true;
         if (*it == "tokens") elysium_debug_tokens = true;
         if (*it == "spec") elysium_debug_spec = true;
@@ -252,13 +243,9 @@ void InitDebugLogLevels()
         if (*it == "sp") elysium_debug_sp = true;
         if (*it == "sto") elysium_debug_sto = true;
         if (*it == "txdb") elysium_debug_txdb = true;
-        if (*it == "tradedb") elysium_debug_tradedb = true;
         if (*it == "persistence") elysium_debug_persistence = true;
         if (*it == "ui") elysium_debug_ui = true;
         if (*it == "pending") elysium_debug_pending = true;
-        if (*it == "metadex1") elysium_debug_metadex1 = true;
-        if (*it == "metadex2") elysium_debug_metadex2 = true;
-        if (*it == "metadex3") elysium_debug_metadex3 = true;
         if (*it == "packets") elysium_debug_packets = true;
         if (*it == "packets_readonly") elysium_debug_packets_readonly = true;
         if (*it == "walletcache") elysium_debug_walletcache = true;
@@ -272,14 +259,12 @@ void InitDebugLogLevels()
             if (*it == "all") allDebugState = true;
             elysium_debug_parser_data = allDebugState;
             elysium_debug_parser_readonly = allDebugState;
-            elysium_debug_parser_dex = allDebugState;
             elysium_debug_parser = allDebugState;
             elysium_debug_verbose = allDebugState;
             elysium_debug_verbose2 = allDebugState;
             elysium_debug_verbose3 = allDebugState;
             elysium_debug_vin = allDebugState;
             elysium_debug_script = allDebugState;
-            elysium_debug_dex = allDebugState;
             elysium_debug_send = allDebugState;
             elysium_debug_tokens = allDebugState;
             elysium_debug_spec = allDebugState;
@@ -288,13 +273,9 @@ void InitDebugLogLevels()
             elysium_debug_sp = allDebugState;
             elysium_debug_sto = allDebugState;
             elysium_debug_txdb = allDebugState;
-            elysium_debug_tradedb = allDebugState;
             elysium_debug_persistence = allDebugState;
             elysium_debug_ui = allDebugState;
             elysium_debug_pending = allDebugState;
-            elysium_debug_metadex1 = allDebugState;
-            elysium_debug_metadex2 = allDebugState;
-            elysium_debug_metadex3 = allDebugState;
             elysium_debug_packets =  allDebugState;
             elysium_debug_packets_readonly =  allDebugState;
             elysium_debug_walletcache = allDebugState;

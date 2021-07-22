@@ -8,9 +8,9 @@
 
 namespace elysium {
 
-bool IsEnabledFlag(SigmaStatus status)
+bool IsEnabledFlag(LelantusStatus status)
 {
-    return status == SigmaStatus::SoftEnabled || status == SigmaStatus::HardEnabled;
+    return status == LelantusStatus::SoftEnabled || status == LelantusStatus::HardEnabled;
 }
 
 bool IsRequireCreationFee(EcosystemId ecosystem)
@@ -25,11 +25,13 @@ bool IsRequireCreationFee(EcosystemId ecosystem, int block)
 
 bool IsRequireCreationFee(EcosystemId ecosystem, int block, const std::string& network)
 {
-    if (ecosystem != ELYSIUM_PROPERTY_ELYSIUM) {
-        return false;
-    }
+	return false;
 
-    return block >= ConsensusParams(network).PROPERTY_CREATION_FEE_BLOCK;
+	if (ecosystem != ELYSIUM_PROPERTY_ELYSIUM) {
+		return false;
+	}
+
+	return block >= ConsensusParams(network).PROPERTY_CREATION_FEE_BLOCK;
 }
 
 } // namespace elysium

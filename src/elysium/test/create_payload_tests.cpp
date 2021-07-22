@@ -56,78 +56,6 @@ BOOST_AUTO_TEST_CASE(payload_send_all)
     BOOST_CHECK_EQUAL(HexStr(vch), "0000000402");
 }
 
-BOOST_AUTO_TEST_CASE(payload_dex_offer)
-{
-    // Sell tokens for bitcoins [type 20, version 1]
-    std::vector<unsigned char> vch = CreatePayload_DExSell(
-        static_cast<uint32_t>(1),         // property: MSC
-        static_cast<int64_t>(100000000),  // amount to transfer: 1.0 MSC (in willets)
-        static_cast<int64_t>(20000000),   // amount desired: 0.2 BTC (in satoshis)
-        static_cast<uint8_t>(10),         // payment window in blocks
-        static_cast<int64_t>(10000),      // commitment fee in satoshis
-        static_cast<uint8_t>(1));         // sub-action: new offer
-
-    BOOST_CHECK_EQUAL(HexStr(vch),
-        "00010014000000010000000005f5e1000000000001312d000a000000000000271001");
-}
-
-BOOST_AUTO_TEST_CASE(payload_meta_dex_new_trade)
-{
-    // Trade tokens for tokens [type 25, version 0]
-    std::vector<unsigned char> vch = CreatePayload_MetaDExTrade(
-        static_cast<uint32_t>(1),          // property: MSC
-        static_cast<int64_t>(250000000),   // amount for sale: 2.5 MSC
-        static_cast<uint32_t>(31),         // property desired: TetherUS
-        static_cast<int64_t>(5000000000)); // amount desired: 50.0 TetherUS
-
-    BOOST_CHECK_EQUAL(HexStr(vch),
-        "0000001900000001000000000ee6b2800000001f000000012a05f200");
-}
-
-BOOST_AUTO_TEST_CASE(payload_meta_dex_cancel_at_price)
-{
-    // Trade tokens for tokens [type 26, version 0]
-    std::vector<unsigned char> vch = CreatePayload_MetaDExCancelPrice(
-        static_cast<uint32_t>(1),          // property: MSC
-        static_cast<int64_t>(250000000),   // amount for sale: 2.5 MSC
-        static_cast<uint32_t>(31),         // property desired: TetherUS
-        static_cast<int64_t>(5000000000)); // amount desired: 50.0 TetherUS
-
-    BOOST_CHECK_EQUAL(HexStr(vch),
-        "0000001a00000001000000000ee6b2800000001f000000012a05f200");
-}
-
-BOOST_AUTO_TEST_CASE(payload_meta_dex_cancel_pair)
-{
-    // Trade tokens for tokens [type 27, version 0]
-    std::vector<unsigned char> vch = CreatePayload_MetaDExCancelPair(
-        static_cast<uint32_t>(1),          // property: MSC
-        static_cast<uint32_t>(31));        // property desired: TetherUS
-
-    BOOST_CHECK_EQUAL(HexStr(vch),
-        "0000001b000000010000001f");
-}
-
-BOOST_AUTO_TEST_CASE(payload_meta_dex_cancel_ecosystem)
-{
-    // Trade tokens for tokens [type 28, version 0]
-    std::vector<unsigned char> vch = CreatePayload_MetaDExCancelEcosystem(
-        static_cast<uint8_t>(1));          // ecosystem: Main
-
-    BOOST_CHECK_EQUAL(HexStr(vch),
-        "0000001c01");
-}
-
-BOOST_AUTO_TEST_CASE(payload_accept_dex_offer)
-{
-    // Purchase tokens with bitcoins [type 22, version 0]
-    std::vector<unsigned char> vch = CreatePayload_DExAccept(
-        static_cast<uint32_t>(1),          // property: MSC
-        static_cast<int64_t>(130000000));  // amount to transfer: 1.3 MSC (in willets)
-
-    BOOST_CHECK_EQUAL(HexStr(vch), "00000016000000010000000007bfa480");
-}
-
 BOOST_AUTO_TEST_CASE(payload_create_property)
 {
     // Create property [type 50, version 0]
@@ -180,81 +108,6 @@ BOOST_AUTO_TEST_CASE(payload_create_property_full)
         static_cast<int64_t>(1000000));  // number of units to create
 
     BOOST_CHECK_EQUAL(vch.size(), 1299);
-}
-
-BOOST_AUTO_TEST_CASE(payload_create_crowdsale)
-{
-    // Create crowdsale [type 51, version 0]
-    std::vector<unsigned char> vch = CreatePayload_IssuanceVariable(
-        static_cast<uint8_t>(1),             // ecosystem: main
-        static_cast<uint16_t>(1),            // property type: indivisible tokens
-        static_cast<uint32_t>(0),            // previous property: none
-        std::string("Companies"),            // category
-        std::string("Bitcoin Mining"),       // subcategory
-        std::string("Quantum Miner"),        // label
-        std::string("builder.bitwatch.co"),  // website
-        std::string(""),                     // additional information
-        static_cast<uint32_t>(1),            // property desired: MSC
-        static_cast<int64_t>(100),           // tokens per unit vested
-        static_cast<uint64_t>(7731414000L),  // deadline: 31 Dec 2214 23:00:00 UTC
-        static_cast<uint8_t>(10),            // early bird bonus: 10 % per week
-        static_cast<uint8_t>(12));           // issuer bonus: 12 %
-
-    BOOST_CHECK_EQUAL(HexStr(vch),
-        "0000003301000100000000436f6d70616e69657300426974636f696e204d696e696e67"
-        "005175616e74756d204d696e6572006275696c6465722e62697477617463682e636f00"
-        "0000000001000000000000006400000001ccd403f00a0c");
-}
-
-BOOST_AUTO_TEST_CASE(payload_create_crowdsale_empty)
-{
-    // Create crowdsale [type 51, version 0]
-    std::vector<unsigned char> vch = CreatePayload_IssuanceVariable(
-        static_cast<uint8_t>(1),            // ecosystem: main
-        static_cast<uint16_t>(1),           // property type: indivisible tokens
-        static_cast<uint32_t>(0),           // previous property: none
-        std::string(""),                    // category
-        std::string(""),                    // subcategory
-        std::string(""),                    // label
-        std::string(""),                    // website
-        std::string(""),                    // additional information
-        static_cast<uint32_t>(1),           // property desired: MSC
-        static_cast<int64_t>(100),          // tokens per unit vested
-        static_cast<uint64_t>(7731414000L), // deadline: 31 Dec 2214 23:00:00 UTC
-        static_cast<uint8_t>(10),           // early bird bonus: 10 % per week
-        static_cast<uint8_t>(12));          // issuer bonus: 12 %
-
-    BOOST_CHECK_EQUAL(vch.size(), 38);
-}
-
-BOOST_AUTO_TEST_CASE(payload_create_crowdsale_full)
-{
-    // Create crowdsale [type 51, version 0]
-    std::vector<unsigned char> vch = CreatePayload_IssuanceVariable(
-        static_cast<uint8_t>(1),            // ecosystem: main
-        static_cast<uint16_t>(1),           // property type: indivisible tokens
-        static_cast<uint32_t>(0),           // previous property: none
-        std::string(700, 'x'),              // category
-        std::string(700, 'x'),              // subcategory
-        std::string(700, 'x'),              // label
-        std::string(700, 'x'),              // website
-        std::string(700, 'x'),              // additional information
-        static_cast<uint32_t>(1),           // property desired: MSC
-        static_cast<int64_t>(100),          // tokens per unit vested
-        static_cast<uint64_t>(7731414000L), // deadline: 31 Dec 2214 23:00:00 UTC
-        static_cast<uint8_t>(10),           // early bird bonus: 10 % per week
-        static_cast<uint8_t>(12));          // issuer bonus: 12 %
-
-    BOOST_CHECK_EQUAL(vch.size(), 1313);
-}
-
-BOOST_AUTO_TEST_CASE(payload_close_crowdsale)
-{
-    // Close crowdsale [type 53, version 0]
-    std::vector<unsigned char> vch = CreatePayload_CloseCrowdsale(
-        static_cast<uint32_t>(9));  // property: SP #9
-
-    BOOST_CHECK_EQUAL(HexStr(vch), "0000003500000009");
 }
 
 BOOST_AUTO_TEST_CASE(payload_create_managed_property)
@@ -482,132 +335,83 @@ BOOST_AUTO_TEST_CASE(payload_elysium_alert_minclient)
     BOOST_CHECK_EQUAL(HexStr(vch), "ffffffff0003000dbc047465737400");
 }
 
-BOOST_AUTO_TEST_CASE(payload_create_denomination)
+
+BOOST_AUTO_TEST_CASE(payload_create_lelantus_mint)
 {
-    // Simple send [type 1025, version 0]
-    std::vector<unsigned char> vch = CreatePayload_CreateDenomination(
-        static_cast<uint32_t>(1),          // property: MSC
-        static_cast<int64_t>(100000000));  // value of denomination: 1.0 MSC (in willets)
+    std::string data = "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000";
+    std::string data2 = "62f60f65fdcf293c616fccab2a7caf6ecaf6c412321e52cc4737e1c09afa282beb000012cd84cfa478f74f46af852d3d97692d34b983fee6dc3e9ad7945ef810e73747d3cbb6a40fb4c53ebb267831b65de7981335e43caa7211a2be3b81d4c5e0e059";
+    std::string data3 = "0100000000000000000000000000000000000000000000000000000000000000";
 
-    BOOST_CHECK_EQUAL(HexStr(vch), "00000401000000010000000005f5e100");
-}
+    lelantus::PublicCoin pubcoin;
+    std::vector<unsigned char> schnorrProof;
+    MintEntryId id;
 
-BOOST_AUTO_TEST_CASE(payload_create_simple_mint)
-{
-    std::string data = "40a2bc96cfd3911902843529cd674472b423164756eef7f7845fdfdc3a548f620100";
-    std::string data2 = "7cbfec8ffd9b56c607c94975f90f95b3aaa84422357ceb293b6b0c42d2d7bb920000";
+    CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> pubcoin;
+    CDataStream(ParseHex(data2), SER_NETWORK, CLIENT_VERSION) >> schnorrProof;
+    CDataStream(ParseHex(data3), SER_NETWORK, CLIENT_VERSION) >> id;
 
-    elysium::SigmaPublicKey publicKey, publicKey2;
-    CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> publicKey;
-    CDataStream(ParseHex(data2), SER_NETWORK, CLIENT_VERSION) >> publicKey2;
-
-    // Simple mint [type 1026, version 0]
-    std::vector<unsigned char> vch = CreatePayload_SimpleMint(
-        static_cast<uint32_t>(1),          // property: MSC
-        {
-            std::make_pair(0, publicKey),
-            std::make_pair(1, publicKey2)
-        }
-    );
+    // Simple mint [type 1027, version 0]
+    std::vector<unsigned char> vch = CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, schnorrProof);
 
     BOOST_CHECK_EQUAL(HexStr(vch),
-        "0000040200000001020040a2bc96cfd3911902843529cd674472b423164756eef7f7845fdfdc3a548f620100" \
-        "017cbfec8ffd9b56c607c94975f90f95b3aaa84422357ceb293b6b0c42d2d7bb920000"
+        "0000040300000001" \
+        "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000" \
+        "0100000000000000000000000000000000000000000000000000000000000000" \
+        "0000000000000064" \
+        "f60f65fdcf293c616fccab2a7caf6ecaf6c412321e52cc4737e1c09afa282beb000012cd84cfa478f74f46af852d3d97692d34b983fee6dc3e9ad7945ef810e73747d3cbb6a40fb4c53ebb267831b65de7981335e43caa7211a2be3b81d4c5e0e059"
     );
 }
 
-BOOST_AUTO_TEST_CASE(payload_create_simple_mint_no_mints)
+BOOST_AUTO_TEST_CASE(payload_create_lelantus_mint_invalid_schnorrproof_size)
 {
-    // Simple mint [type 1026, version 0]
-    BOOST_CHECK_EXCEPTION(
-        CreatePayload_SimpleMint(
-            static_cast<uint32_t>(1),
-            {}
-        ),
-        std::invalid_argument,
-        [](const std::invalid_argument& e) {
-            return std::string("no mints provided") == e.what();
-        }
-    );
+    std::string data = "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000";
+    std::string data2 = "0100000000000000000000000000000000000000000000000000000000000000";
+
+    lelantus::PublicCoin pubcoin;
+    MintEntryId id;
+
+    CDataStream(ParseHex(data), SER_NETWORK, CLIENT_VERSION) >> pubcoin;
+    CDataStream(ParseHex(data2), SER_NETWORK, CLIENT_VERSION) >> id;
+
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(32, 0x00)), std::invalid_argument);
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(97, 0x00)), std::invalid_argument);
+    BOOST_CHECK_NO_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(98, 0x00)));
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(99, 0x00)), std::invalid_argument);
+    BOOST_CHECK_THROW(CreatePayload_CreateLelantusMint(1, pubcoin, id, 100, std::vector<unsigned char>(1000, 0x00)), std::invalid_argument);
 }
 
-BOOST_AUTO_TEST_CASE(payload_create_simple_mint_exceed_limit)
+BOOST_AUTO_TEST_CASE(payload_create_lelantus_spend_without_change)
 {
-    std::vector<std::pair<uint8_t, elysium::SigmaPublicKey>> pubs;
-    pubs.resize(ELYSIUM_MAX_SIMPLE_MINTS + 1);
+    // std::vector<std::pair<lelantus::PrivateCoin, uint32_t>> coins;
+    // std::map<uint32_t, std::vector<lelantus::PublicCoin>> anonss;
+    // LelantusAmount amount;
+    // std::vector<lelantus::PrivateCoin> coinOuts;
+    // std::map<uint32_t, uint256> groupBlockHashs;
+    // uint256 metaData;
 
-    // Simple mint [type 1026, version 0]
-    BOOST_CHECK_EXCEPTION(
-        CreatePayload_SimpleMint(
-            static_cast<uint32_t>(1),
-            pubs
-        ),
-        std::invalid_argument,
-        [](const std::invalid_argument& e) {
-            return std::string("amount of mints exceeded limit") == e.what();
-        }
-    );
+    // auto js = ::CreateJoinSplit(coins, anonss, 100, coinOuts, groupBlockHashs, metaData);
+    // lelantus::
+
+    // Simple mint [type 1027, version 0]
+    // std::vector<unsigned char> vch = CreatePayload_CreateLelantusJoinSplit(1, 100);
+
+    // BOOST_CHECK_EQUAL(HexStr(vch),
+    //     "0000040300000001" \
+    //     "353408b8878f73271f391935a2d628087010d82d3066a0f2262af686681a3b960000" \
+    //     "0100000000000000000000000000000000000000000000000000000000000000" \
+    //     "0000000000000064" \
+    //     "f60f65fdcf293c616fccab2a7caf6ecaf6c412321e52cc4737e1c09afa282beb000012cd84cfa478f74f46af852d3d97692d34b983fee6dc3e9ad7945ef810e73747d3cbb6a40fb4c53ebb267831b65de7981335e43caa7211a2be3b81d4c5e0e059"
+    // );
 }
 
-BOOST_AUTO_TEST_CASE(payload_create_simple_spend)
+BOOST_AUTO_TEST_CASE(payload_create_change_lelantus_status)
 {
-    auto& params = DefaultSigmaParams;
-    SigmaPrivateKey key1, key2;
-    std::vector<SigmaPublicKey> anonimitySet;
-    SigmaProof spend(params);
-    CDataStream buffer(SER_DISK, CLIENT_VERSION);
+    // Change property lelantus status [type 1029, version 0]
+    std::vector<unsigned char> vch = CreatePayload_ChangeLelantusStatus(
+        static_cast<uint32_t>(13), // property: SP #13
+        LelantusStatus::SoftDisabled); // 0x00
 
-    key1.Generate();
-    key2.Generate();
-    anonimitySet = { SigmaPublicKey(key1, params), SigmaPublicKey(key2, params) };
-    spend.Generate(key1, anonimitySet.begin(), anonimitySet.end(), false);
-    buffer << key1.serial;
-    buffer << spend;
-
-    std::vector<unsigned char> payload;
-    BOOST_CHECK_NO_THROW(
-        payload = CreatePayload_SimpleSpend(1, 2, 3, anonimitySet.size(), spend, key1.serial)
-    );
-
-    BOOST_CHECK_EQUAL(
-        HexStr(payload),
-        "000004000000000102000000030002" + HexStr(buffer.vch)
-    );
-}
-
-BOOST_AUTO_TEST_CASE(payload_create_simple_spendv1)
-{
-    auto& params = DefaultSigmaParams;
-    SigmaPrivateKey key1, key2;
-    std::vector<SigmaPublicKey> anonimitySet;
-    SigmaProof spend(params);
-    CDataStream buffer(SER_DISK, CLIENT_VERSION);
-
-    std::array<uint8_t, 64> rawSignature;
-    std::array<uint8_t, 33> publicKey;
-
-    std::fill(rawSignature.begin(), rawSignature.end(), 0x11);
-    std::fill(publicKey.begin(), publicKey.end(), 0xFF);
-    publicKey[0] = 0x02; // Compressed
-
-    auto signature = ECDSASignature::ParseCompact(ECDSAContext::CreateSignContext(), rawSignature.begin());
-
-    key1.Generate();
-    key2.Generate();
-    anonimitySet = { SigmaPublicKey(key1, params), SigmaPublicKey(key2, params) };
-    spend.Generate(key1, anonimitySet.begin(), anonimitySet.end(), false);
-    buffer << spend.proof;
-
-    std::vector<unsigned char> payload;
-    BOOST_CHECK_NO_THROW(
-        payload = CreatePayload_SimpleSpend(1, 2, 3, anonimitySet.size(), spend, signature, CPubKey(publicKey.begin(), publicKey.end()))
-    );
-
-    BOOST_CHECK_EQUAL(
-        HexStr(payload),
-        "000104000000000102000000030002" +
-        HexStr(publicKey) + HexStr(buffer.vch) + HexStr(rawSignature)
-    );
+    BOOST_CHECK_EQUAL(HexStr(vch), "000004050000000d00");
 }
 
 BOOST_AUTO_TEST_SUITE_END()
