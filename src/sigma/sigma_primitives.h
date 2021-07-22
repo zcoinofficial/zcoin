@@ -35,9 +35,9 @@ public:
 
     static GroupElement commit(const GroupElement& g, const Exponent m, const GroupElement h, const Exponent r);
 
-    static void convert_to_sigma(uint64_t num, uint64_t n, uint64_t m, std::vector<Exponent>& out);
+    static void convert_to_sigma(std::size_t num, std::size_t n, std::size_t m, std::vector<Exponent>& out);
 
-    static std::vector<uint64_t> convert_to_nal(uint64_t num, uint64_t n, uint64_t m);
+    static std::vector<std::size_t> convert_to_nal(std::size_t num, std::size_t n, std::size_t m);
 
     static void generate_challenge(const std::vector<GroupElement>& group_elements,
                                    Exponent& result_out);
