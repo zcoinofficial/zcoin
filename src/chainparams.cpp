@@ -272,6 +272,10 @@ public:
         consensus.nMTPSwitchTime = SWITCH_TO_MTP_BLOCK_HEADER;
         consensus.nMTPStartBlock = 117564;
         consensus.nMTPFiveMinutesStartBlock = SWITCH_TO_MTP_5MIN_BLOCK;
+
+        consensus.nPPSwitchTime = SWITCH_PROGPOW_BLOCK_HEADER;
+        assert(consensus.nMTPSwitchTime < consensus.nPPSwitchTime && "PP Switch time must be after MTP");
+
         consensus.nDifficultyAdjustStartBlock = 0;
         consensus.nFixedDifficulty = 0x2000ffff;
         consensus.nPowTargetSpacingMTP = 5*60;

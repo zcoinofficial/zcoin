@@ -13,6 +13,7 @@
 #include "crypto/common.h"
 #include "chainparams.h"
 #include "crypto/scrypt.h"
+#include "crypto/progpow.h"
 #include "crypto/Lyra2Z/Lyra2Z.h"
 #include "crypto/Lyra2Z/Lyra2.h"
 #include "crypto/MerkleTreeProof/mtp.h"
@@ -23,8 +24,6 @@
 #include <algorithm>
 #include <string>
 #include "precomputed_hash.h"
-
-
 
 unsigned char GetNfactor(int64_t nTimestamp) {
     int l = 0;
@@ -54,7 +53,23 @@ uint256 CBlockHeader::GetHash() const {
 bool CBlockHeader::IsMTP() const {
     // In case if nTime == ZC_GENESIS_BLOCK_TIME we're being called from CChainParams() constructor and
     // it is not possible to get Params()
-    return nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime;
+    return (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nMTPSwitchTime);
+}
+
+bool CBlockHeader::IsProgPow() const {
+    // This isnt ideal, but suffers from the same issue as the IsMTP() call above. Also can't get
+    // chainActive/mapBlockIndex in the consensus library (without disabling binary hardening)..
+    return (nTime > ZC_GENESIS_BLOCK_TIME && nTime >= Params().GetConsensus().nPPSwitchTime);
+}
+
+uint256 CBlockHeader::GetProgPowHeaderHash() const 
+{
+    CProgPowHeader input(*this);
+    return SerializeHash(input);
+}
+
+uint256 CBlockHeader::GetProgPowHashFull(uint256& mix_hash) const {
+    return progpow_hash_full(*this, mix_hash);
 }
 
 uint256 CBlockHeader::GetPoWHash(int nHeight) const {
@@ -62,15 +77,15 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
         return cachedPoWHash;
 
     uint256 powHash;
-    if (IsMTP()) {
+    if (IsProgPow()) {
+        powHash = progpow_hash_light(*this);
+    } else if (IsMTP()) {
         // MTP processing is the same across all the types on networks
         powHash = mtpHashValue;
-    }
-    else if (nHeight == 0) {
+    } else if (nHeight == 0) {
         // genesis block
         scrypt_N_1_1_256(BEGIN(nVersion), BEGIN(powHash), GetNfactor(nTime));
-    }
-    else if (Params().GetConsensus().IsMain()) {
+    } else if (Params().GetConsensus().IsMain()) {
         if (nHeight >= 20500) {
             // Lyra2Z
             lyra2z_hash(BEGIN(nVersion), BEGIN(powHash));
@@ -89,8 +104,7 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
              * }
              */
         }
-    }
-    else {
+    } else {
         // regtest - use simple block hash
         // current testnet is MTP since block 1, shouldn't get here
         powHash = GetHash();
@@ -102,12 +116,12 @@ uint256 CBlockHeader::GetPoWHash(int nHeight) const {
 
 std::string CBlock::ToString() const {
     std::stringstream s;
-    s << strprintf("CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%u)\n",
+    s << strprintf("CBlock(hash=%s, ver=0x%08x, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, nNonce64=%u, vtx=%u)\n",
         GetHash().ToString(),
         nVersion,
         hashPrevBlock.ToString(),
         hashMerkleRoot.ToString(),
-        nTime, nBits, nNonce,
+        nTime, nBits, nNonce, nNonce64,
         vtx.size());
     for (unsigned int i = 0; i < vtx.size(); i++)
     {

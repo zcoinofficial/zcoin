@@ -14,6 +14,7 @@
 #include "uint256.h"
 #include "definition.h"
 #include "crypto/MerkleTreeProof/mtp.h"
+#include "crypto/progpow.h"
 #include "firo_params.h"
 
 // Can't include sigma.h
@@ -102,7 +103,12 @@ public:
     uint256 hashMerkleRoot;
     uint32_t nTime;
     uint32_t nBits;
-    uint32_t nNonce;
+    uint32_t nNonce;   //! std satoshi
+
+    // Firo - ProgPow 
+    uint32_t nHeight;
+    uint64_t nNonce64;
+    uint256 mix_hash;
 
     // Firo - MTP
     int32_t nVersionMTP = 0x1000;
@@ -136,23 +142,39 @@ public:
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
         READWRITE(nBits);
-        READWRITE(nNonce);
-        // Firo - MTP
-        // On read: allocate and read. On write: write only if already allocated
-        if (IsMTP()) {
-            READWRITE(nVersionMTP);
-            READWRITE(mtpHashValue);
-            READWRITE(reserved[0]);
-            READWRITE(reserved[1]);
-            if (ser_action.ForRead()) {
-                mtpHashData = std::make_shared<CMTPHashData>();
-                READWRITE(*mtpHashData);
-            }
-            else {
-                if (mtpHashData && !(s.GetType() & SER_GETHASH))
+
+
+        // Firo - ProgPoW
+        // Return std 4byte, if ProgPoW return 8byte
+        if (IsProgPow()) {
+
+            READWRITE(nHeight);
+            READWRITE(nNonce64);
+            READWRITE(mix_hash);
+
+        } else {
+
+            READWRITE(nNonce);
+
+            // Firo - MTP
+            // On read: allocate and read. On write: write only if already allocated
+            if (IsMTP()) {
+                READWRITE(nVersionMTP);
+                READWRITE(mtpHashValue);
+                READWRITE(reserved[0]);
+                READWRITE(reserved[1]);
+                if (ser_action.ForRead()) {
+                    mtpHashData = std::make_shared<CMTPHashData>();
                     READWRITE(*mtpHashData);
+                }
+                else {
+                    if (mtpHashData && !(s.GetType() & SER_GETHASH)) {
+                      READWRITE(*mtpHashData);
+                    }
+                }
             }
         }
+
     }
 
     template <typename Stream>
@@ -162,13 +184,20 @@ public:
         READWRITE(hashMerkleRoot);
         READWRITE(nTime);
         READWRITE(nBits);
-        READWRITE(nNonce);
-        if (IsMTP()) {
-            READWRITE(nVersionMTP);
-            READWRITE(mtpHashValue);
-            READWRITE(reserved[0]);
-            READWRITE(reserved[1]);
-        }
+        if (IsProgPow()) {
+            READWRITE(nHeight);
+            READWRITE(nNonce64);
+            READWRITE(mix_hash);
+        } else {
+            READWRITE(nNonce);
+            if (IsMTP()) {
+                READWRITE(nVersionMTP);
+                READWRITE(mtpHashValue);
+                READWRITE(reserved[0]);
+                READWRITE(reserved[1]);
+            }
+        };
+    
     }
 
     void SetNull()
@@ -179,6 +208,12 @@ public:
         nTime = 0;
         nBits = 0;
         nNonce = 0;
+
+        // Firo - ProgPow
+        nNonce64 = 0;
+        nHeight  = 0;
+        mix_hash.SetNull();
+
         cachedPoWHash.SetNull();
 
         // Firo - MTP
@@ -209,6 +244,12 @@ public:
     void InvalidateCachedPoWHash(int nHeight) const;
 
     bool IsMTP() const;
+
+    bool IsProgPow() const;
+
+    uint256 GetProgPowHeaderHash() const;
+    uint256 GetProgPowHashFull(uint256& mix_hash) const;
+
 };
 
 class CBlock : public CBlockHeader
@@ -271,13 +312,21 @@ public:
         block.hashMerkleRoot = hashMerkleRoot;
         block.nTime          = nTime;
         block.nBits          = nBits;
-        block.nNonce         = nNonce;
-        if (block.IsMTP()) {
-            block.nVersionMTP = nVersionMTP;
-            block.mtpHashData = mtpHashData;
-            block.reserved[0] = reserved[0];
-            block.reserved[1] = reserved[1];
+
+        if (IsProgPow()) {
+            block.nHeight    = nHeight;
+            block.nNonce64   = nNonce64;
+            block.mix_hash   = mix_hash;
+        } else {
+            block.nNonce     = nNonce;
+            if (block.IsMTP()) {
+                block.nVersionMTP = nVersionMTP;
+                block.mtpHashData = mtpHashData;
+                block.reserved[0] = reserved[0];
+                block.reserved[1] = reserved[1];
+            }
         }
+
         return block;
     }
 
@@ -323,5 +372,29 @@ struct CBlockLocator
 
 /** Compute the consensus-critical block weight (see BIP 141). */
 int64_t GetBlockWeight(const CBlock& tx);
+
+/**
+ * Serializer for ProgPow BlockHeader input
+*/
+class CProgPowHeader : private CBlockHeader {
+    public:
+    CProgPowHeader(const CBlockHeader &header)
+    {
+        CBlockHeader::SetNull();
+        *((CBlockHeader*)this) = header;
+    }
+
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action) {
+        READWRITE(this->nVersion);
+        READWRITE(hashPrevBlock);
+        READWRITE(hashMerkleRoot);
+        READWRITE(nTime);
+        READWRITE(nBits);
+        READWRITE(nHeight);
+    }
+};
 
 #endif // BITCOIN_PRIMITIVES_BLOCK_H

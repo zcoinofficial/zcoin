@@ -4154,9 +4154,31 @@ bool CheckBlockHeader(const CBlockHeader& block, CValidationState& state, const 
     int nHeight = GetNHeight(block);
     // set nHeight to INT_MAX if block is not found in index and it's not genesis block
     if (nHeight == 0 && !block.hashPrevBlock.IsNull())
+    {
         nHeight = INT_MAX;
-    if (fCheckPOW && !CheckProofOfWork(block.GetPoWHash(nHeight), block.nBits, consensusParams))
-        return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+    }
+
+    if (fCheckPOW)
+    {
+        uint256 final_hash;
+        if (block.IsProgPow())
+        {
+            uint256 exp_mix_hash;
+            final_hash = block.GetProgPowHashFull(exp_mix_hash);
+            if (exp_mix_hash != block.mix_hash)
+            {
+                return state.DoS(50, false, REJECT_INVALID, "invalid-mixhash", false, "mix_hash validity failed");
+            }
+        } else {
+            final_hash = block.GetPoWHash(nHeight);
+        }
+        if (!CheckProofOfWork(final_hash, block.nBits, consensusParams))
+        {
+            return state.DoS(50, false, REJECT_INVALID, "high-hash", false, "proof of work failed");
+        }
+
+    }
+
     return true;
 }
 

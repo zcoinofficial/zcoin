@@ -531,6 +531,34 @@ crypto_libbitcoin_crypto_a_SOURCES = \
   crypto/sha512.cpp \
   crypto/sha512.h
 
+crypto_libbitcoin_crypto_a_SOURCES += \
+  crypto/progpow/include/ethash/ethash.h \
+  crypto/progpow/include/ethash/ethash.hpp \
+  crypto/progpow/include/ethash/hash_types.h \
+  crypto/progpow/include/ethash/hash_types.hpp \
+  crypto/progpow/include/ethash/keccak.h \
+  crypto/progpow/include/ethash/keccak.hpp \
+  crypto/progpow/include/ethash/progpow.hpp \
+  crypto/progpow/include/ethash/version.h \
+  crypto/progpow/lib/ethash/bit_manipulation.h \
+  crypto/progpow/lib/ethash/builtins.h \
+  crypto/progpow/lib/ethash/endianness.hpp \
+  crypto/progpow/lib/ethash/ethash-internal.hpp \
+  crypto/progpow/lib/ethash/ethash.cpp \
+  crypto/progpow/lib/ethash/kiss99.hpp \
+  crypto/progpow/lib/ethash/managed.cpp \
+  crypto/progpow/lib/ethash/primes.c \
+  crypto/progpow/lib/ethash/primes.h \
+  crypto/progpow/lib/ethash/progpow.cpp \
+  crypto/progpow/lib/keccak/keccak.c \
+  crypto/progpow/lib/keccak/keccakf1600.c \
+  crypto/progpow/lib/keccak/keccakf800.c \
+  crypto/progpow/lib/support/attributes.h \
+  crypto/progpow/helpers.hpp \
+  crypto/progpow/firopow_test_vectors.hpp \
+  crypto/progpow.h \
+  crypto/progpow.cpp
+
 # consensus: shared between all executables that validate any consensus rules.
 libbitcoin_consensus_a_CPPFLAGS = $(AM_CPPFLAGS) $(BITCOIN_INCLUDES) $(LIBBLSSIG_INCLUDES) $(PIC_FLAGS)
 libbitcoin_consensus_a_CXXFLAGS = $(AM_CXXFLAGS) $(PIE_FLAGS) $(PIC_FLAGS)
